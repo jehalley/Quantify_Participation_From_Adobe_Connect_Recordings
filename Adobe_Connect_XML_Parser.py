@@ -94,7 +94,7 @@ def get_camera_contributions(index_stream_xml_path):
         camera_start_id = camera_starts_index[item].parent.parent.streamPublisherID.text
         camera_start_ids.append(camera_start_id)
         #get time that student started their camera
-        camera_start_time = camera_starts_index[item].parent.parent.startTime.text
+        camera_start_time = int(camera_starts_index[item].parent.parent.startTime.text)
         camera_start_times.append(camera_start_time)
     student_camera_start_times = defaultdict(list)
     for student_id, start_time in zip(camera_start_ids,camera_start_times):
@@ -110,7 +110,7 @@ def get_camera_contributions(index_stream_xml_path):
         camera_stops_id = camera_stops_index[item].parent.parent.streamPublisherID.text
         camera_stops_ids.append(camera_stops_id)
         #get time that student started their camera
-        camera_stops_time = camera_stops_index[item].parent.parent.time.text
+        camera_stops_time = int(camera_stops_index[item].parent.parent.time.text)
         camera_stops_times.append(camera_stops_time)
     student_camera_stop_times = defaultdict(list)
     #initialize a default dict that has the same keys as the student_camera_start_times dict 
@@ -121,14 +121,22 @@ def get_camera_contributions(index_stream_xml_path):
     
     #get end of class time
     end_of_class_object = index_stream.find_all(text = '__stop__')   
-    end_of_class_time = end_of_class_object[len(end_of_class_object)-1].parent.parent.Number.text
+    end_of_class_time = int(end_of_class_object[len(end_of_class_object)-1].parent.parent.Number.text)
     
     for k in student_camera_stop_times.keys():
         if len(student_camera_stop_times[k])<len(student_camera_start_times[k]):
             student_camera_stop_times[k].append(end_of_class_time)
     
+    #determine total time on camera
     
-    return student_camera_start_times, student_camera_stop_times
+    student_time_on_camera = defaultdict(int)
+    for k in student_camera_stop_times.keys():
+        times = [a-b for a,b in zip(student_camera_stop_times[k],student_camera_start_times[k])]
+        total_time = sum(times)
+        student_time_on_camera[k] += total_time
+            
+    
+    return student_time_on_camera
     
     #if students did not leave class before class stopped use end of class time
     for k in test2.keys()
