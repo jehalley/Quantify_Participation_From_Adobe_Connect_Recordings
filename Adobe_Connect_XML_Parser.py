@@ -139,10 +139,18 @@ def get_camera_contributions(index_stream_xml_path):
         student_minutes_on_camera[k] += total_time
         student_fraction_of_class_on_camera[k] += fraction_of_class_time_on_camera
     
-    return student_minutes_on_camera, student_fraction_of_class_on_camera
+    #get id of instructor
+    instructor_id = index_stream.find("myID").text
+        
     
-    #if students did not leave class before class stopped use end of class time
-    for k in test2.keys()
+    #determine fraction of time student is on mic compared to instructor
+    instructor_time_on_camera = student_minutes_on_camera[instructor_id]
+    student_fraction_of_instructor_time_on_camera = {k:v / instructor_time_on_camera for k,v in student_minutes_on_camera.items()}
+    student_fraction_of_instructor_time_on_camera = defaultdict(int, student_fraction_of_instructor_time_on_camera )
+    
+    return student_minutes_on_camera, student_fraction_of_class_on_camera, student_fraction_of_instructor_time_on_camera
+    
+   
 
  def get_microphone_contributions(index_stream_xml_path):
     with open(index_stream_xml_path) as filepath:
@@ -175,33 +183,36 @@ def get_camera_contributions(index_stream_xml_path):
     end_of_class_object = index_stream.find_all(text = '__stop__')   
     end_of_class_time = int(end_of_class_object[len(end_of_class_object)-1].parent.parent.Number.text)
     
+   
     #determine total time on microphone
     student_minutes_on_microphone = defaultdict(int)
     student_fraction_of_class_on_microphone = defaultdict(int)
+    
     for k in student_mic_stop_times.keys():
         times = [a-b for a,b in zip(student_mic_stop_times[k],student_mic_start_times[k])]
         total_time = sum(times)/1000/60
         fraction_of_class_time_on_microphone = (sum(times)/end_of_class_time)
+        
         student_minutes_on_microphone[k] += total_time
         student_fraction_of_class_on_microphone[k] += fraction_of_class_time_on_microphone
     
-    return student_minutes_on_microphone, student_fraction_of_class_on_microphone
+    #get id of instructor
+    instructor_id = index_stream.find("myID").text
+        
+    
+    #determine fraction of time student is on mic compared to instructor
+    instructor_time_on_mic = student_minutes_on_microphone[instructor_id]
+    student_fraction_of_instructor_mic = {k:v / instructor_time_on_mic for k,v in student_minutes_on_microphone.items()}
+    student_fraction_of_instructor_mic = defaultdict(int, student_fraction_of_instructor_mic )
+    
+    return student_minutes_on_microphone, student_fraction_of_class_on_microphone,student_fraction_of_instructor_mic
     
         
         
-        #get id number of student that started their camera
-        camera_start_id = camera_starts_index[item].parent.parent.streamPublisherID.text
-        camera_start_ids.append(camera_start_id)
-        #get time that student started their camera
-        camera_start_time = int(camera_starts_index[item].parent.parent.startTime.text)
-        camera_start_times.append(camera_start_time)
-    student_camera_start_times = defaultdict(list)
-    for student_id, start_time in zip(camera_start_ids,camera_start_times):
-        student_camera_start_times[student_id].append(start_time) 
-    
+ 
      
  
  test = get_microphone_contributions(index_stream_xml_path)
  
- test,test2 = get_camera_contributions(index_stream_xml_path)
+ test,test2,test3 = get_camera_contributions(index_stream_xml_path)
  test,test2 = get_microphone_contributions(index_stream_xml_path)
