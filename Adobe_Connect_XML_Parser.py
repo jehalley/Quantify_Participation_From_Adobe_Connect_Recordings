@@ -67,6 +67,10 @@ def get_student_ids_and_pIDs(index_stream_xml_path):
     for item in range(len(student_names_index)):
         #use the name index to access the actual name and add it to the list of names
         student_name = student_names_index[item].parent.fullName.text
+        '''sometimes students have connection issues and they end up with multiple
+        logins with their name followed by a number, for this reason the
+        following is done to remove any numbers from names'''
+        student_name = ''.join([i for i in student_name if not i.isdigit()])
         student_names.append(student_name)
         #use the name index to find the student id number for the student
         id_number = student_names_index[item].find_next_sibling("id").text
@@ -74,17 +78,16 @@ def get_student_ids_and_pIDs(index_stream_xml_path):
         # use the name index to find the the pID for each student and add to list
         pID_number = student_names_index[item].find_next_sibling("pID").text
         pID_numbers.append(pID_number)
-    student_ids = defaultdict(list)
-    for student_id,name in zip(id_numbers,student_names):
-        student_ids[student_id].append(name)
-    student_pIDs = defaultdict(list)
-    for pID,name in zip(pID_numbers,student_names):
-        student_pIDs[pID].append(name)
-    return student_ids, student_pIDs
     
+    '''make dict with student ID or pID and student name. Reverse list is used 
+        because sometimes students change names, but the first name is always
+        as listed in class roster, also note sometimes students are kicked out
+        and log back in and thus given a new ID and pID, this will be dealt
+        with when names are subbed in for IDs at the end of each results
+        collection function'''
     
-    dict(zip(student_names,id_numbers))
-    student_pIDs = dict(zip(student_names,pID_numbers))
+    student_ids = dict(zip(list(reversed(id_numbers)),list(reversed(student_names))))
+    student_pIDs = dict(zip(list(reversed(pID_numbers)),list(reversed(student_names))))
     return student_ids, student_pIDs
     #future plans: take a second argument a student roster cvs file make a dict
     #with zeroes for all students to act as a placeholder. Then use combined
