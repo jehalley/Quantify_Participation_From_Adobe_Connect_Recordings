@@ -127,16 +127,20 @@ def get_camera_contributions(index_stream_xml_path):
         if len(student_camera_stop_times[k])<len(student_camera_start_times[k]):
             student_camera_stop_times[k].append(end_of_class_time)
     
+
+    
     #determine total time on camera
     
-    student_time_on_camera = defaultdict(int)
+    student_minutes_on_camera = defaultdict(int)
+    student_fraction_of_class_on_camera = defaultdict(int)
     for k in student_camera_stop_times.keys():
         times = [a-b for a,b in zip(student_camera_stop_times[k],student_camera_start_times[k])]
-        total_time = sum(times)
-        student_time_on_camera[k] += total_time
-            
+        total_time = sum(times)/1000/60
+        fraction_of_class_time_on_camera = (sum(times)/end_of_class_time)
+        student_minutes_on_camera[k] += total_time
+        student_fraction_of_class_on_camera[k] += fraction_of_class_time_on_camera
     
-    return student_time_on_camera
+    return student_minutes_on_camera, student_fraction_of_class_on_camera
     
     #if students did not leave class before class stopped use end of class time
     for k in test2.keys()
