@@ -96,9 +96,9 @@ def get_camera_contributions(index_stream_xml_path):
         #get time that student started their camera
         camera_start_time = camera_starts_index[item].parent.parent.startTime.text
         camera_start_times.append(camera_start_time)
-    student_camera_start_times = defaultdict(set)
+    student_camera_start_times = defaultdict(list)
     for student_id, start_time in zip(camera_start_ids,camera_start_times):
-        student_camera_start_times[student_id].add(start_time) 
+        student_camera_start_times[student_id].append(start_time) 
     
     
     #get time when student turned off camera
@@ -112,13 +112,21 @@ def get_camera_contributions(index_stream_xml_path):
         #get time that student started their camera
         camera_stops_time = camera_stops_index[item].parent.parent.time.text
         camera_stops_times.append(camera_stops_time)
-    student_camera_stop_times = defaultdict(set)
+    student_camera_stop_times = defaultdict(list)
+    #initialize a default dict that has the same keys as the student_camera_start_times dict 
+    for k in student_camera_start_times.keys():
+        student_camera_stop_times[k]
     for student_id, stop_time in zip(camera_stops_ids,camera_stops_times):
-        student_camera_stop_times[student_id].add(stop_time)
+        student_camera_stop_times[student_id].append(stop_time)
     
     #get end of class time
     end_of_class_object = index_stream.find_all(text = '__stop__')   
     end_of_class_time = end_of_class_object[len(end_of_class_object)-1].parent.parent.Number.text
+    
+    for k in student_camera_stop_times.keys():
+        if len(student_camera_stop_times[k])<len(student_camera_start_times[k]):
+            student_camera_stop_times[k].append(end_of_class_time)
+    
     
     return student_camera_start_times, student_camera_stop_times
     
