@@ -145,7 +145,50 @@ def get_camera_contributions(index_stream_xml_path):
     #if students did not leave class before class stopped use end of class time
     for k in test2.keys()
 
- test = get_camera_contributions(index_stream_xml_path)
+ def get_microphone_contributions(index_stream_xml_path):
+    with open(index_stream_xml_path) as filepath:
+        index_stream = BeautifulSoup(filepath,"xml")
+    #get times when student has a microphone change (turns it on OR off)
+    mic_change_index = index_stream.find_all(string = 'userVoipStatusChanged')
+    mic_start_ids = []
+    mic_start_times = []
+    mic_stop_ids = []
+    mic_stop_times = []
+    for item in range(len(mic_change_index)):
+        #look in index of microphone changes to find instances where student turned mic on (started talking)
+        if (
+                mic_change_index[item].parent.parent.parent.String.find_next_sibling("String").text == 'true' and
+                mic_change_index[item].parent.parent.parent.String.find_next_sibling("String").find_next_sibling("String").text == 'false'
+            ):
+            mic_start_ids.append(mic_change_index[item].parent.parent.parent.String.text)
+            mic_start_times.append(int(mic_change_index[item].parent.find_next_sibling("time").text))
+        elif mic_change_index[item].parent.parent.parent.String.find_next_sibling("String").find_next_sibling("String").text == 'false':
+            mic_stop_ids.append(mic_change_index[item].parent.parent.parent.String.text)
+            mic_stop_times.append(int(mic_change_index[item].parent.find_next_sibling("time").text))
+    student_mic_start_times = defaultdict(list)
+    for student_id, start_time in zip(mic_start_ids,mic_start_times):
+        student_mic_start_times[student_id].append(start_time)
+    student_mic_stop_times = defaultdict(list)
+    for student_id, stop_time in zip(mic_stop_ids,mic_stop_times):
+        student_mic_stop_times[student_id].append(stop_time)
+    
+    return student_mic_start_times,student_mic_stop_times
+    
+        
+        
+        #get id number of student that started their camera
+        camera_start_id = camera_starts_index[item].parent.parent.streamPublisherID.text
+        camera_start_ids.append(camera_start_id)
+        #get time that student started their camera
+        camera_start_time = int(camera_starts_index[item].parent.parent.startTime.text)
+        camera_start_times.append(camera_start_time)
+    student_camera_start_times = defaultdict(list)
+    for student_id, start_time in zip(camera_start_ids,camera_start_times):
+        student_camera_start_times[student_id].append(start_time) 
+    
+     
  
- test,test2 = get_camera_contributions(index_stream_xml_path)
+ test = get_microphone_contributions(index_stream_xml_path)
+ 
+ test,test2 = get_microphone_contributions(index_stream_xml_path)
  
