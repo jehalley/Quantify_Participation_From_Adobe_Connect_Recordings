@@ -74,7 +74,16 @@ def get_student_ids_and_pIDs(index_stream_xml_path):
         # use the name index to find the the pID for each student and add to list
         pID_number = student_names_index[item].find_next_sibling("pID").text
         pID_numbers.append(pID_number)
-    student_ids = dict(zip(student_names,id_numbers))
+    student_ids = defaultdict(list)
+    for student_id,name in zip(id_numbers,student_names):
+        student_ids[student_id].append(name)
+    student_pIDs = defaultdict(list)
+    for pID,name in zip(pID_numbers,student_names):
+        student_pIDs[pID].append(name)
+    return student_ids, student_pIDs
+    
+    
+    dict(zip(student_names,id_numbers))
     student_pIDs = dict(zip(student_names,pID_numbers))
     return student_ids, student_pIDs
     #future plans: take a second argument a student roster cvs file make a dict
@@ -125,9 +134,7 @@ def get_camera_contributions(index_stream_xml_path):
     for k in student_camera_stop_times.keys():
         if len(student_camera_stop_times[k])<len(student_camera_start_times[k]):
             student_camera_stop_times[k].append(end_of_class_time)
-    
-
-    
+        
     #determine total time on camera
     
     student_minutes_on_camera = defaultdict(int)
