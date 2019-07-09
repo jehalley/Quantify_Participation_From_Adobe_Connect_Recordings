@@ -2,7 +2,6 @@ from collections import defaultdict
 from bs4 import BeautifulSoup
 from collections import Counter
 
-from xml.etree import ElementTree
 
 def get_student_roster(student_roster_csv_file_path):
     #read csv to get list of students in class store as list
@@ -172,7 +171,21 @@ def get_camera_contributions(index_stream_xml_path):
     for student_id, stop_time in zip(mic_stop_ids,mic_stop_times):
         student_mic_stop_times[student_id].append(stop_time)
     
-    return student_mic_start_times,student_mic_stop_times
+    #get end of class time
+    end_of_class_object = index_stream.find_all(text = '__stop__')   
+    end_of_class_time = int(end_of_class_object[len(end_of_class_object)-1].parent.parent.Number.text)
+    
+    #determine total time on microphone
+    student_minutes_on_microphone = defaultdict(int)
+    student_fraction_of_class_on_microphone = defaultdict(int)
+    for k in student_mic_stop_times.keys():
+        times = [a-b for a,b in zip(student_mic_stop_times[k],student_mic_start_times[k])]
+        total_time = sum(times)/1000/60
+        fraction_of_class_time_on_microphone = (sum(times)/end_of_class_time)
+        student_minutes_on_microphone[k] += total_time
+        student_fraction_of_class_on_microphone[k] += fraction_of_class_time_on_microphone
+    
+    return student_minutes_on_microphone, student_fraction_of_class_on_microphone
     
         
         
@@ -190,5 +203,5 @@ def get_camera_contributions(index_stream_xml_path):
  
  test = get_microphone_contributions(index_stream_xml_path)
  
+ test,test2 = get_camera_contributions(index_stream_xml_path)
  test,test2 = get_microphone_contributions(index_stream_xml_path)
- 
