@@ -93,7 +93,18 @@ def get_student_ids_and_pIDs(index_stream_xml_path):
     #with zeroes for all students to act as a placeholder. Then use combined
     #dict from insight project. to give students with no record a zero
 
-def get_camera_contributions(index_stream_xml_path):
+def get_results_by_name_from_results_by_id(dict_of_results_by_id,student_ids):
+    ids = list(dict_of_results_by_id.keys())
+    names_subbed_for_ids = [student_ids.get(item,0) for item in ids]
+    results = list(dict_of_results_by_id.values())
+    results_with_names_subbed_for_ids = defaultdict(list)
+    for names, results in zip(names_subbed_for_ids,results):
+        results_with_names_subbed_for_ids[names].append(results) 
+    return({k:sum(v) for k,v in results_with_names_subbed_for_ids.items()})
+    
+    return results_with_names_subbed_for_ids
+
+def get_camera_contributions(index_stream_xml_path,student_ids):
     with open(index_stream_xml_path) as filepath:
         index_stream = BeautifulSoup(filepath,"xml")
     #get time when student came on camera
@@ -110,26 +121,42 @@ def get_camera_contributions(index_stream_xml_path):
     student_camera_start_times = defaultdict(list)
     for student_id, start_time in zip(camera_start_ids,camera_start_times):
         student_camera_start_times[student_id].append(start_time) 
-    
-    
+      
     #get time when student turned off camera
-    camera_stops_index = index_stream.find_all(string = 'streamRemoved')
-    camera_stops_ids = []
-    camera_stops_times = []
-    for item in range(len(camera_stops_index)):
-        #get id number of student that started their camera
-        camera_stops_id = camera_stops_index[item].parent.parent.streamPublisherID.text
-        camera_stops_ids.append(camera_stops_id)
-        #get time that student started their camera
-        camera_stops_time = int(camera_stops_index[item].parent.parent.time.text)
-        camera_stops_times.append(camera_stops_time)
-    student_camera_stop_times = defaultdict(list)
+    stream_removed_index = index_stream.find_all(string = 'streamRemoved')
+    stream_removed_ids = []
+    stream_removed_times = []
+    for item in range(len(stream_removed_index)):
+        #get id number of student that stopped their camera
+        stream_removed_id = stream_removed_index[item].parent.parent.streamPublisherID.text
+        stream_removed_ids.append(stream_removed_id)
+        #get time that student stopped their camera
+        stream_removed_time = int(stream_removed_index[item].parent.parent.time.text)
+        stream_removed_times.append(stream_removed_time)
+  
+    #get time when student loses connection
+    user_deleted_index = index_stream.find_all(string = 'userDeleted')
+    user_deleted_ids = []
+    user_deleted_times = []
+    for item in range(len(user_deleted_index)):
+        #get id number of student that loses connection
+        user_deleted_id = user_deleted_index[item].parent.parent.parent.Number.text
+        user_deleted_ids.append(user_deleted_id)
+        #get time that student that loses connection
+        user_deleted_time = int(user_deleted_index[item].parent.parent.parent.time.text)
+        user_deleted_times.append(user_deleted_time)
+
+    
+    #merge lists of stream removed and stream ids b/c both are ways camera stops
+    camera_stops_ids = stream_removed_ids + user_deleted_ids
+    camera_stops_times = stream_removed_times + user_deleted_times
     #initialize a default dict that has the same keys as the student_camera_start_times dict 
+    student_camera_stop_times = defaultdict(list)
     for k in student_camera_start_times.keys():
         student_camera_stop_times[k]
     for student_id, stop_time in zip(camera_stops_ids,camera_stops_times):
         student_camera_stop_times[student_id].append(stop_time)
-    
+
     #get end of class time
     end_of_class_object = index_stream.find_all(text = '__stop__')   
     end_of_class_time = int(end_of_class_object[len(end_of_class_object)-1].parent.parent.Number.text)
@@ -139,7 +166,6 @@ def get_camera_contributions(index_stream_xml_path):
             student_camera_stop_times[k].append(end_of_class_time)
         
     #determine total time on camera
-    
     student_minutes_on_camera = defaultdict(int)
     student_fraction_of_class_on_camera = defaultdict(int)
     for k in student_camera_stop_times.keys():
@@ -148,6 +174,15 @@ def get_camera_contributions(index_stream_xml_path):
         fraction_of_class_time_on_camera = (sum(times)/end_of_class_time)
         student_minutes_on_camera[k] += total_time
         student_fraction_of_class_on_camera[k] += fraction_of_class_time_on_camera
+        
+        '''
+        Can't find a way to track pauses, seems built into the video somehow
+        might have to use video file size. For video with no audio the ratio of 
+        time to file size (minutes/byte)
+        for 3 measured videos is 1.933339174737323e-06, 1.933339174737323e-06,
+        1.9923862174854855e-06 
+        
+        '''
     
     #get id of instructor
     instructor_id = index_stream.find("myID").text
@@ -158,11 +193,15 @@ def get_camera_contributions(index_stream_xml_path):
     student_fraction_of_instructor_time_on_camera = {k:v / instructor_time_on_camera for k,v in student_minutes_on_camera.items()}
     student_fraction_of_instructor_time_on_camera = defaultdict(int, student_fraction_of_instructor_time_on_camera )
     
-    return student_minutes_on_camera, student_fraction_of_class_on_camera, student_fraction_of_instructor_time_on_camera
     
-   
-
- def get_microphone_contributions(index_stream_xml_path):
+    return (
+    get_results_by_name_from_results_by_id(student_minutes_on_camera,student_ids),
+    get_results_by_name_from_results_by_id(student_fraction_of_class_on_camera,student_ids),
+    get_results_by_name_from_results_by_id(student_fraction_of_instructor_time_on_camera,student_ids)
+            )
+    
+    
+def get_microphone_contributions(index_stream_xml_path,student_ids):
     with open(index_stream_xml_path) as filepath:
         index_stream = BeautifulSoup(filepath,"xml")
     #get times when student has a microphone change (turns it on OR off)
@@ -215,14 +254,18 @@ def get_camera_contributions(index_stream_xml_path):
     student_fraction_of_instructor_mic = {k:v / instructor_time_on_mic for k,v in student_minutes_on_microphone.items()}
     student_fraction_of_instructor_mic = defaultdict(int, student_fraction_of_instructor_mic )
     
-    return student_minutes_on_microphone, student_fraction_of_class_on_microphone,student_fraction_of_instructor_mic
+    
+    return (
+    get_results_by_name_from_results_by_id(student_minutes_on_microphone,student_ids),
+    get_results_by_name_from_results_by_id(student_fraction_of_class_on_microphone,student_ids),
+    get_results_by_name_from_results_by_id(student_fraction_of_instructor_mic,student_ids)
+            )
+    
     
         
-        
+ results4 = get_microphone_contributions(index_stream_xml_path,student_ids)
  
-     
+ results1,results2,results3 = get_camera_contributions(index_stream_xml_path,student_ids)
+ test= get_results_by_name_from_results_by_id(results1,student_ids)
  
- test = get_microphone_contributions(index_stream_xml_path)
- 
- test,test2,test3 = get_camera_contributions(index_stream_xml_path)
  test,test2 = get_microphone_contributions(index_stream_xml_path)
