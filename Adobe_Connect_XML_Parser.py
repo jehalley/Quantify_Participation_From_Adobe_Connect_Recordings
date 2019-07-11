@@ -304,7 +304,7 @@ def get_camera_contributions(index_stream_xml_path,ftstage_file_path,student_ids
     
             )
  
-results1,results2,results3,results4 = get_camera_contributions(index_stream_xml_path,ftstage_file_path,student_ids)
+time_on_camera,time_with_camera_paused,fraction_of_class_on_camera,fraction_of_instructor_time_on_camera = get_camera_contributions(index_stream_xml_path,ftstage_file_path,student_ids)
     
 def get_microphone_contributions(index_stream_xml_path,student_ids):
     with open(index_stream_xml_path) as filepath:
@@ -368,7 +368,7 @@ def get_microphone_contributions(index_stream_xml_path,student_ids):
     
     
         
- results1,results2,results3 = get_microphone_contributions(index_stream_xml_path,student_ids)
+ minutes_on_mic,fraction_of_class_time_on_mic,fraction_of_instructor_time_on_mic = get_microphone_contributions(index_stream_xml_path,student_ids)
  
  results1,results2,results3 = get_camera_contributions(index_stream_xml_path,student_ids)
  test= get_results_by_name_from_results_by_id(results1,student_ids)
