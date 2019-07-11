@@ -51,6 +51,8 @@ def get_index_stream_xml_path(recording_folder_path):
     indexstream = "indexstream.xml"
     return recording_folder_path+indexstream
 
+index_stream_xml_path = get_index_stream_xml_path(recording_folder_path)
+
 def get_student_ids_and_pIDs(index_stream_xml_path):
     with open(index_stream_xml_path) as filepath:
         index_stream = BeautifulSoup(filepath,"xml")
@@ -89,6 +91,7 @@ def get_student_ids_and_pIDs(index_stream_xml_path):
     #with zeroes for all students to act as a placeholder. Then use combined
     #dict from insight project. to give students with no record a zero
 
+student_ids,student_pIDs = get_student_ids_and_pIDs(index_stream_xml_path)
     
 def get_results_by_name_from_results_by_id(dict_of_results_by_id,student_ids):
     ids = list(dict_of_results_by_id.keys())
@@ -105,6 +108,8 @@ def get_ftstage_file_path(recording_folder_path):
     ftstage_wildcard = "ftstage*.xml"
     ftstage_file_path = glob.glob(recording_folder_path+ftstage_wildcard)
     return ftstage_file_path[0]
+
+ftstage_file_path = get_ftstage_file_path(recording_folder_path)
     
 def get_camera_contributions(index_stream_xml_path,ftstage_file_path,student_ids):
     with open(index_stream_xml_path) as filepath:
@@ -282,12 +287,12 @@ def get_camera_contributions(index_stream_xml_path,ftstage_file_path,student_ids
     end_of_class_time = int(end_of_class_object[len(end_of_class_object)-1].parent.parent.Number.text)
     end_of_clas_time_minutes = end_of_class_time/1000/60
     student_fraction_of_class_on_camera = {k:v / end_of_clas_time_minutes for k,v in student_time_on_camera.items()}
-    student_fraction_of_class_on_camera = defaultdict(int, student_fraction_of_instructor_time_on_camera )
+    student_fraction_of_class_on_camera = defaultdict(int, student_fraction_of_class_on_camera )
     
     #determine fraction of time student is on mic compared to instructor
     instructor_id = index_stream.find("myID").text
     instructor_time_on_camera = student_time_on_camera[instructor_id]
-    student_fraction_of_instructor_time_on_camera = {k:v / instructor_time_on_camera for k,v in student_minutes_on_camera.items()}
+    student_fraction_of_instructor_time_on_camera = {k:v / instructor_time_on_camera for k,v in student_time_on_camera.items()}
     student_fraction_of_instructor_time_on_camera = defaultdict(int, student_fraction_of_instructor_time_on_camera )
     
     
@@ -298,7 +303,8 @@ def get_camera_contributions(index_stream_xml_path,ftstage_file_path,student_ids
     get_results_by_name_from_results_by_id(student_fraction_of_instructor_time_on_camera,student_ids)
     
             )
-    
+ 
+results1,results2,results3,results4 = get_camera_contributions(index_stream_xml_path,ftstage_file_path,student_ids)
     
 def get_microphone_contributions(index_stream_xml_path,student_ids):
     with open(index_stream_xml_path) as filepath:
