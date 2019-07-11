@@ -1,6 +1,8 @@
 from collections import defaultdict
 from bs4 import BeautifulSoup
 from collections import Counter
+from copy import copy
+import glob
 
 
 def get_student_roster(student_roster_csv_file_path):
@@ -42,18 +44,12 @@ def get_contribution_summary(student_ids,cam_contributions,mic_contributions,han
     # append all the dictionaries together
 
 
-index_stream_xml_path = '/Users/JeffHalley/Adobe Connect Project/adobe connect recording files/indexstream.xml'
-
-with open('/Users/JeffHalley/Adobe Connect Project/adobe connect recording files/indexstream.xml') as fp:
-    soup = BeautifulSoup(fp,"xml")
-
-student_name = soup.find_all('fullName')
-student_id = student_name.find_all_next
+recording_folder_path = '/Users/JeffHalley/Adobe Connect Project/adobe connect recording files/'
 
 
-name_variable = "Jeff Halley"
-name_variable_before_student_id = soup.find(text= name_variable)
-student_id = name_variable_before_student_id.parent.find_next_sibling("id")
+def get_index_stream_xml_path(recording_folder_path):
+    indexstream = "indexstream.xml"
+    return recording_folder_path+indexstream
 
 def get_student_ids_and_pIDs(index_stream_xml_path):
     with open(index_stream_xml_path) as filepath:
@@ -93,6 +89,7 @@ def get_student_ids_and_pIDs(index_stream_xml_path):
     #with zeroes for all students to act as a placeholder. Then use combined
     #dict from insight project. to give students with no record a zero
 
+    
 def get_results_by_name_from_results_by_id(dict_of_results_by_id,student_ids):
     ids = list(dict_of_results_by_id.keys())
     names_subbed_for_ids = [student_ids.get(item,0) for item in ids]
@@ -104,7 +101,12 @@ def get_results_by_name_from_results_by_id(dict_of_results_by_id,student_ids):
     
     return results_with_names_subbed_for_ids
 
-def get_camera_contributions(index_stream_xml_path,student_ids):
+def get_ftstage_file_path(recording_folder_path):
+    ftstage_wildcard = "ftstage*.xml"
+    ftstage_file_path = glob.glob(recording_folder_path+ftstage_wildcard)
+    return ftstage_file_path[0]
+    
+def get_camera_contributions(index_stream_xml_path,ftstage_file_path,student_ids):
     with open(index_stream_xml_path) as filepath:
         index_stream = BeautifulSoup(filepath,"xml")
     #get time when student came on camera
@@ -156,15 +158,18 @@ def get_camera_contributions(index_stream_xml_path,student_ids):
         student_camera_stop_times[k]
     for student_id, stop_time in zip(camera_stops_ids,camera_stops_times):
         student_camera_stop_times[student_id].append(stop_time)
-
-    #get end of class time
-    end_of_class_object = index_stream.find_all(text = '__stop__')   
-    end_of_class_time = int(end_of_class_object[len(end_of_class_object)-1].parent.parent.Number.text)
     
+    '''
+    having students with ids but with no camera time interfere with later calcs
+    so I will give all of the students that did not appear on camera a start
+    and end time that is is the same as the end of class
+    '''
+     
     for k in student_camera_stop_times.keys():
-        if len(student_camera_stop_times[k])<len(student_camera_start_times[k]):
-            student_camera_stop_times[k].append(end_of_class_time)
-        
+        if len(student_camera_start_times[k]) == 0:
+            student_camera_stop_times[k] = [0]
+            student_camera_start_times[k].append(0)
+              
     #determine total time on camera
     student_minutes_on_camera = defaultdict(int)
     student_fraction_of_class_on_camera = defaultdict(int)
@@ -175,14 +180,105 @@ def get_camera_contributions(index_stream_xml_path,student_ids):
         student_minutes_on_camera[k] += total_time
         student_fraction_of_class_on_camera[k] += fraction_of_class_time_on_camera
         
-        '''
-        Can't find a way to track pauses, seems built into the video somehow
-        might have to use video file size. For video with no audio the ratio of 
-        time to file size (minutes/byte)
-        for 3 measured videos is 1.933339174737323e-06, 1.933339174737323e-06,
-        1.9923862174854855e-06 
+    #get total time student pauses camera
+    with open(ftstage_file_path) as filepath:
+        ftstage = BeautifulSoup(filepath,"xml")
+    pause_change_index = ftstage.find_all(string ="updateVideoPauseStatus")
+    pause_start_ids = []
+    pause_start_times = []
+    pause_stop_ids = []
+    pause_stop_times = []  
+    for item in range(len(pause_change_index)):
+        if pause_change_index[item].parent.parent.String.find_next_sibling("String").text == 'true':
+            pause_start_times.append(int(pause_change_index[item].parent.parent.Object.time.text))
+            pause_start_ids.append(pause_change_index[item].parent.parent.String.find_next_sibling("Number").text)
+        else:
+            pause_stop_times.append(int(pause_change_index[item].parent.parent.Object.time.text))
+            pause_stop_ids.append(pause_change_index[item].parent.parent.String.find_next_sibling("Number").text)
+    student_pause_start_times = defaultdict(list)
+    for student_id, start_time in zip(pause_start_ids,pause_start_times):
+        student_pause_start_times[student_id].append(start_time)
+    student_pause_stop_times = defaultdict(list)
+    for student_id, stop_time in zip(pause_stop_ids,pause_stop_times):
+        student_pause_stop_times[student_id].append(stop_time)
+        #the first pause_stop_time is when the student turns on their camera so it will be discarded
+        #trimmed_student_pause_stop_times = {k: student_pause_stop_times[k][1:] for k in student_pause_stop_times}
+    
+    '''sometimes a student loses connection or ends stream. when they reconnect 
+    a stop pause is recorded to get rid of these false stops I will use the 
+    camera_start_times to identify them (they occur within 100 ms of the camera
+    start event). Since I've already trimmed the false stop from 
+    the first camera start event. I will trim all of those from the camera starts
+    list. Also, I can't just use the within 100 ms method to eliminate the first 
+    camera start events because if a student's camera is turned on before the
+    recording starts it is recorded as much as 3000 ms before the false stop
+    event'''
+
+    #give every student that didn't come on camera a zero pause stop time
+    for k in student_camera_stop_times.keys():
+        if len(student_pause_stop_times[k]) == 0:    
+            student_pause_stop_times[k].append(0)
+    
+    #get rid of pause times that occur when a student loses connection and relogs   
+    #trimmed_student_camera_start_times = {k: student_camera_start_times[k][1:] for k in student_camera_start_times}
+    
+    for k in student_camera_start_times.keys():
+        for camera_start_time in reversed(range(len(student_camera_start_times[k]))):
+            for pause_stop_time in reversed(range(len(student_pause_stop_times[k]))):
+                    if (
+                        student_pause_stop_times[k][pause_stop_time]-student_camera_start_times[k][camera_start_time] > 0 and
+                        
+                        student_pause_stop_times[k][pause_stop_time] < student_camera_start_times[k][camera_start_time]+100
+                        ):   
+                        del(student_pause_stop_times[k][pause_stop_time])
+                        
+                        
+                        print(k,pause_stop_time,student_pause_stop_times[k][pause_stop_time])
+
+
+
+                   #del(student_pause_stop_times[k][pause_stop_time])
+     
+    for k in student_camera_start_times.keys():
+        #print("k:",k)
+        for camera_start_time in range(len(student_camera_start_times[k])):
+            #print("camera_start_time:",camera_start_time)
+            for pause_stop_time in range(len(student_pause_stop_times[k])):
+                print("statement1:",student_pause_stop_times[k][pause_stop_time])
+                print("statement2:",student_camera_start_times[k][camera_start_time])
+                print("arguemnt1:",student_pause_stop_times[k][pause_stop_time]-student_camera_start_times[k][camera_start_time]>1 )
+                print("arguemnt2:",student_pause_stop_times[k][pause_stop_time]-student_camera_start_times[k][camera_start_time]<student_camera_start_times[k][camera_start_time]+100)
+
+
+
+                print("pause_stop_time:",pause_stop_time)
         
-        '''
+        print(camera_start_time in range(len(student_camera_start_times[k])))
+              
+        :
+            print(k,camera_start_time)
+            
+            
+            for pause_stop_time in range(len(student_pause_stop_times[k])):
+                
+        
+    
+#    for k in trimmed_student_pause_stop_times.keys():
+#        if len(trimmed_student_pause_stop_times[k])>len(student_pause_start_times[k]):
+#            del(trimmed_student_pause_stop_times[k][len(trimmed_student_pause_stop_times[k])-1])
+    
+    #set end of class time for students that pause until the end of class    
+    for k in trimmed_student_pause_stop_times.keys():
+        if len(trimmed_student_pause_stop_times[k])<len(student_pause_start_times[k]):
+            trimmed_student_pause_stop_times[k].append(end_of_class_time)
+    
+    #determine total time on camera
+    student_minutes_with_camera_paused = defaultdict(int)
+    for k in trimmed_student_pause_stop_times.keys():
+        times = [a-b for a,b in zip(trimmed_student_pause_stop_times[k],student_pause_start_times[k])]
+        total_time = sum(times)/1000/60
+        student_minutes_with_camera_paused[k] += total_time
+    
     
     #get id of instructor
     instructor_id = index_stream.find("myID").text
@@ -263,7 +359,7 @@ def get_microphone_contributions(index_stream_xml_path,student_ids):
     
     
         
- results4 = get_microphone_contributions(index_stream_xml_path,student_ids)
+ results1,results2,results3 = get_microphone_contributions(index_stream_xml_path,student_ids)
  
  results1,results2,results3 = get_camera_contributions(index_stream_xml_path,student_ids)
  test= get_results_by_name_from_results_by_id(results1,student_ids)
