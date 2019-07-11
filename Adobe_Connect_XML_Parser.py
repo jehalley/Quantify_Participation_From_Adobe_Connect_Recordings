@@ -204,6 +204,17 @@ def get_camera_contributions(index_stream_xml_path,ftstage_file_path,student_ids
         #the first pause_stop_time is when the student turns on their camera so it will be discarded
         #trimmed_student_pause_stop_times = {k: student_pause_stop_times[k][1:] for k in student_pause_stop_times}
     
+    #find times when student video feed was lost
+    video_removed_index = ftstage.find_all(string ="removeVideo")
+    video_removed_ids = []
+    video_removed_times = []
+    for item in range(len(video_removed_index)):
+        video_removed_ids.append(video_removed_index[item].parent.parent.Number.text)
+        video_removed_times.append(int(video_removed_index[item].parent.parent.time.text))
+    student_video_removed_times = defaultdict(list)
+    for student_id, removed_time in zip(video_removed_ids,video_removed_times):
+        student_video_removed_times[student_id].append(removed_time)    
+        
     '''sometimes a student loses connection or ends stream. when they reconnect 
     a stop pause is recorded to get rid of these false stops I will use the 
     camera_start_times to identify them (they occur within 100 ms of the camera
@@ -219,63 +230,47 @@ def get_camera_contributions(index_stream_xml_path,ftstage_file_path,student_ids
         if len(student_pause_stop_times[k]) == 0:    
             student_pause_stop_times[k].append(0)
     
-    #get rid of pause times that occur when a student loses connection and relogs   
-    #trimmed_student_camera_start_times = {k: student_camera_start_times[k][1:] for k in student_camera_start_times}
+    #combine pause stop times with video removed times because sometimes a pause is stopped by student leaving
+    combined_pause_stop_times = defaultdict(list)
+    for k in student_video_removed_times.keys():
+        for item in range(len(student_video_removed_times[k])):
+            combined_pause_stop_times[k].append(student_video_removed_times[k][item])
+
+    for k in student_pause_stop_times.keys():    
+        for item in range(len(student_pause_stop_times[k])):
+            combined_pause_stop_times[k].append(student_pause_stop_times[k][item])
     
+    #sort the lists of stop times
+    for k in combined_pause_stop_times.keys():
+        combined_pause_stop_times[k].sort()
+    
+    #remove stop times that occur before first pause
+    for k in student_pause_start_times.keys():
+        if len(student_pause_start_times[k]) != 0:
+            for pause_stop_time in reversed(range(len(combined_pause_stop_times[k]))):
+                if combined_pause_stop_times[k][pause_stop_time]< student_pause_start_times[k][0]:
+                    del(combined_pause_stop_times[k][pause_stop_time])
+                          
+    #remove stops when students lose connection
     for k in student_camera_start_times.keys():
         for camera_start_time in reversed(range(len(student_camera_start_times[k]))):
-            for pause_stop_time in reversed(range(len(student_pause_stop_times[k]))):
+            for pause_stop_time in reversed(range(len(combined_pause_stop_times[k]))):
                     if (
-                        student_pause_stop_times[k][pause_stop_time]-student_camera_start_times[k][camera_start_time] > 0 and
+                        combined_pause_stop_times[k][pause_stop_time]-student_camera_start_times[k][camera_start_time] > 0 and
                         
-                        student_pause_stop_times[k][pause_stop_time] < student_camera_start_times[k][camera_start_time]+100
+                        combined_pause_stop_times[k][pause_stop_time] < student_camera_start_times[k][camera_start_time]+100
                         ):   
-                        del(student_pause_stop_times[k][pause_stop_time])
-                        
-                        
-                        print(k,pause_stop_time,student_pause_stop_times[k][pause_stop_time])
-
-
-
-                   #del(student_pause_stop_times[k][pause_stop_time])
-     
-    for k in student_camera_start_times.keys():
-        #print("k:",k)
-        for camera_start_time in range(len(student_camera_start_times[k])):
-            #print("camera_start_time:",camera_start_time)
-            for pause_stop_time in range(len(student_pause_stop_times[k])):
-                print("statement1:",student_pause_stop_times[k][pause_stop_time])
-                print("statement2:",student_camera_start_times[k][camera_start_time])
-                print("arguemnt1:",student_pause_stop_times[k][pause_stop_time]-student_camera_start_times[k][camera_start_time]>1 )
-                print("arguemnt2:",student_pause_stop_times[k][pause_stop_time]-student_camera_start_times[k][camera_start_time]<student_camera_start_times[k][camera_start_time]+100)
-
-
-
-                print("pause_stop_time:",pause_stop_time)
-        
-        print(camera_start_time in range(len(student_camera_start_times[k])))
-              
-        :
-            print(k,camera_start_time)
-            
-            
-            for pause_stop_time in range(len(student_pause_stop_times[k])):
-                
-        
+                        del(combined_pause_stop_times[k][pause_stop_time])
     
-#    for k in trimmed_student_pause_stop_times.keys():
-#        if len(trimmed_student_pause_stop_times[k])>len(student_pause_start_times[k]):
-#            del(trimmed_student_pause_stop_times[k][len(trimmed_student_pause_stop_times[k])-1])
+    # remove stops that are last student removed from class                    
+    for k in combined_pause_stop_times.keys():
+        if len(combined_pause_stop_times[k])>len(student_pause_start_times[k]):
+            del(combined_pause_stop_times[k][len(combined_pause_stop_times[k])-1])
     
-    #set end of class time for students that pause until the end of class    
-    for k in trimmed_student_pause_stop_times.keys():
-        if len(trimmed_student_pause_stop_times[k])<len(student_pause_start_times[k]):
-            trimmed_student_pause_stop_times[k].append(end_of_class_time)
-    
-    #determine total time on camera
+
     student_minutes_with_camera_paused = defaultdict(int)
-    for k in trimmed_student_pause_stop_times.keys():
-        times = [a-b for a,b in zip(trimmed_student_pause_stop_times[k],student_pause_start_times[k])]
+    for k in combined_pause_stop_times.keys():
+        times = [a-b for a,b in zip(combined_pause_stop_times[k],student_pause_start_times[k])]
         total_time = sum(times)/1000/60
         student_minutes_with_camera_paused[k] += total_time
     
@@ -294,6 +289,7 @@ def get_camera_contributions(index_stream_xml_path,ftstage_file_path,student_ids
     get_results_by_name_from_results_by_id(student_minutes_on_camera,student_ids),
     get_results_by_name_from_results_by_id(student_fraction_of_class_on_camera,student_ids),
     get_results_by_name_from_results_by_id(student_fraction_of_instructor_time_on_camera,student_ids)
+    get_results_by_name_from_results_by_id(student_minutes_with_camera_paused,student_ids)
             )
     
     
