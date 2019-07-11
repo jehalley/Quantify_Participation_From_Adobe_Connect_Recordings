@@ -170,15 +170,13 @@ def get_camera_contributions(index_stream_xml_path,ftstage_file_path,student_ids
             student_camera_stop_times[k] = [0]
             student_camera_start_times[k].append(0)
               
-    #determine total time on camera
-    student_minutes_on_camera = defaultdict(int)
-    student_fraction_of_class_on_camera = defaultdict(int)
+    #determine total time student has camera on, not including pauses
+    student_minutes_with_camera_on = defaultdict(int)
     for k in student_camera_stop_times.keys():
         times = [a-b for a,b in zip(student_camera_stop_times[k],student_camera_start_times[k])]
         total_time = sum(times)/1000/60
-        fraction_of_class_time_on_camera = (sum(times)/end_of_class_time)
-        student_minutes_on_camera[k] += total_time
-        student_fraction_of_class_on_camera[k] += fraction_of_class_time_on_camera
+        student_minutes_with_camera_on[k] += total_time
+        
         
     #get total time student pauses camera
     with open(ftstage_file_path) as filepath:
@@ -267,29 +265,38 @@ def get_camera_contributions(index_stream_xml_path,ftstage_file_path,student_ids
         if len(combined_pause_stop_times[k])>len(student_pause_start_times[k]):
             del(combined_pause_stop_times[k][len(combined_pause_stop_times[k])-1])
     
-
+    #determine the total time the student had the camera paused
     student_minutes_with_camera_paused = defaultdict(int)
     for k in combined_pause_stop_times.keys():
         times = [a-b for a,b in zip(combined_pause_stop_times[k],student_pause_start_times[k])]
         total_time = sum(times)/1000/60
         student_minutes_with_camera_paused[k] += total_time
     
+    #determine time student was on camera with it unpaused
+    student_time_on_camera = {k: student_minutes_with_camera_on[k] - student_minutes_with_camera_paused.get(k, 0) for k in student_minutes_with_camera_on.keys()}
     
-    #get id of instructor
-    instructor_id = index_stream.find("myID").text
-        
+    #get fraction of class time student spent on camera
+    
+    #get end of class time
+    end_of_class_object = index_stream.find_all(text = '__stop__')   
+    end_of_class_time = int(end_of_class_object[len(end_of_class_object)-1].parent.parent.Number.text)
+    end_of_clas_time_minutes = end_of_class_time/1000/60
+    student_fraction_of_class_on_camera = {k:v / end_of_clas_time_minutes for k,v in student_time_on_camera.items()}
+    student_fraction_of_class_on_camera = defaultdict(int, student_fraction_of_instructor_time_on_camera )
     
     #determine fraction of time student is on mic compared to instructor
-    instructor_time_on_camera = student_minutes_on_camera[instructor_id]
+    instructor_id = index_stream.find("myID").text
+    instructor_time_on_camera = student_time_on_camera[instructor_id]
     student_fraction_of_instructor_time_on_camera = {k:v / instructor_time_on_camera for k,v in student_minutes_on_camera.items()}
     student_fraction_of_instructor_time_on_camera = defaultdict(int, student_fraction_of_instructor_time_on_camera )
     
     
     return (
-    get_results_by_name_from_results_by_id(student_minutes_on_camera,student_ids),
+    get_results_by_name_from_results_by_id(student_time_on_camera,student_ids),
+    get_results_by_name_from_results_by_id(student_minutes_with_camera_paused,student_ids),
     get_results_by_name_from_results_by_id(student_fraction_of_class_on_camera,student_ids),
     get_results_by_name_from_results_by_id(student_fraction_of_instructor_time_on_camera,student_ids)
-    get_results_by_name_from_results_by_id(student_minutes_with_camera_paused,student_ids)
+    
             )
     
     
