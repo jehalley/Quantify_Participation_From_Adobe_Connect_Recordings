@@ -410,7 +410,65 @@ def get_chat_contributions(index_stream_xml_path,student_pIDs):
     new_timezone = pytz.timezone("US/Pacific")
     #all of the timestamps used by AC are multiplied by 1000
     corrected_start_timestamp = 1000*(datetime.timestamp(old_timezone.localize(start_day_timestamp).astimezone(new_timezone)))
-
+    
+    #get list of ftchat files
+    ftchat_wildcard = "ftchat*.xml"
+    ftchat_file_path_list = glob.glob(recording_folder_path+ftchat_wildcard)
+    
+    #loop through the list finding all messages
+    chat_pIDs = []
+    chat_messages = []
+    chat_times = []
+    chat_lengths = []
+    
+    for file_path in ftchat_file_path_list:
+        with open(file_path) as filepath:
+            ftchat = BeautifulSoup(filepath,"xml")
+        chat_index = ftchat.find_all("fromPID")
+        for item in range(len(chat_index)):
+            if float(chat_index[item].parent.when.text) > corrected_start_timestamp:
+                chat_pIDs.append(chat_index[item].parent.fromPID.text)
+                chat_times.append(chat_index[item].parent.when.text)
+                chat_messages.append(chat_index[item].parent.fromPID.next_sibling.next_sibling.text)
+                chat_lengths.append(len(chat_index[item].parent.fromPID.next_sibling.next_sibling.text))
+                
+    student_chat_messages = defaultdict(list)
+    for student_pIDs, chat_message in zip(chat_pIDs,chat_messages):
+        student_chat_message[student_pIDs].append(chat_message) 
+    
+    student_chat_times = defaultdict(list)
+    for student_pIDs, chat_time in zip(chat_pIDs,chat_times):
+        student_chat_times[student_pIDs].append(chat_time) 
+    
+    student_chat_lengths = defaultdict(list)
+    for student_pIDs, chat_length in zip(chat_pIDs,chat_lengths):
+        student_chat_message[student_pIDs].append(chat_message) 
+    
+    #use counter to count the number of messages for each student
+    student_message_count = Counter(chat_pIDs)
+    
+    student_fraction_of_chats = {k: student_message_count[k] / len(chat_messages) 
+        for k in student_message_count}        
+    
+    with open(index_stream_xml_path) as filepath:
+        index_stream = BeautifulSoup(filepath,"xml")
+    #get time when student came on camera
+    camera_starts_index = index_stream.find_all(string = 'streamAdded')
+    camera_start_ids = []
+    camera_start_times = []
+    for item in range(len(camera_starts_index)):
+        #get id number of student that started their camera
+        camera_start_id = camera_starts_index[item].parent.parent.streamPublisherID.text
+        camera_start_ids.append(camera_start_id)
+        #get time that student started their camera
+        camera_start_time = int(camera_starts_index[item].parent.parent.startTime.text)
+        camera_start_times.append(camera_start_time)
+    student_camera_start_times = defaultdict(list)
+    for student_id, start_time in zip(camera_start_ids,camera_start_times):
+        student_camera_start_times[student_id].append(start_time) 
+      
+        
+    
     
 def get_participant_names(student_time_on_camera):
     participant_names  = dict(zip(student_time_on_camera.keys(),student_time_on_camera.keys()))
