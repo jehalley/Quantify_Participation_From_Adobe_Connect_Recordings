@@ -404,10 +404,12 @@ def get_chat_contributions(index_stream_xml_path,student_pIDs):
     
     #convert to format used in ftchats
     start_timestamp = datetime.fromtimestamp(time.mktime(time.strptime(start_date)))
+    #remove time information to capture chats after class starts but before recording
+    start_day_timestamp = datetime(start_timestamp.year, start_timestamp.month, start_timestamp.day)
     old_timezone = pytz.timezone("Greenwich")
     new_timezone = pytz.timezone("US/Pacific")
     #all of the timestamps used by AC are multiplied by 1000
-    corrected_start_timestamp = 1000*(datetime.timestamp(old_timezone.localize(my_timestamp).astimezone(new_timezone)))
+    corrected_start_timestamp = 1000*(datetime.timestamp(old_timezone.localize(start_day_timestamp).astimezone(new_timezone)))
 
     
 def get_participant_names(student_time_on_camera):
