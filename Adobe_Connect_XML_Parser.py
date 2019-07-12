@@ -148,7 +148,7 @@ def get_camera_contributions(index_stream_xml_path,ftstage_file_path,student_ids
     user_deleted_times = []
     for item in range(len(user_deleted_index)):
         #get id number of student that loses connection
-        user_deleted_id = user_deleted_index[item].parent.parent.parent.Number.text
+        user_deleted_id = user_deleted_index[item].parent.parent.next_sibling.next_sibling.text
         user_deleted_ids.append(user_deleted_id)
         #get time that student that loses connection
         user_deleted_time = int(user_deleted_index[item].parent.parent.parent.time.text)
@@ -195,10 +195,10 @@ def get_camera_contributions(index_stream_xml_path,ftstage_file_path,student_ids
     for item in range(len(pause_change_index)):
         if pause_change_index[item].parent.parent.String.find_next_sibling("String").text == 'true':
             pause_start_times.append(int(pause_change_index[item].parent.parent.Object.time.text))
-            pause_start_ids.append(pause_change_index[item].parent.parent.String.find_next_sibling("Number").text)
+            pause_start_ids.append(pause_change_index[item].parent.next_sibling.next_sibling.text)
         else:
             pause_stop_times.append(int(pause_change_index[item].parent.parent.Object.time.text))
-            pause_stop_ids.append(pause_change_index[item].parent.parent.String.find_next_sibling("Number").text)
+            pause_stop_ids.append(pause_change_index[item].parent.next_sibling.next_sibling.text)
     student_pause_start_times = defaultdict(list)
     for student_id, start_time in zip(pause_start_ids,pause_start_times):
         student_pause_start_times[student_id].append(start_time)
@@ -384,7 +384,7 @@ def save_report_csv(results,report_file_path):
         writer = csv.writer(outfile)
         writer.writerows(results)
 
-participant_names = get_participant_names(student_time_on_camera)
+
 
 (
  student_time_on_camera,
@@ -400,7 +400,7 @@ participant_names = get_participant_names(student_time_on_camera)
  student_fraction_of_instructor_mic
  ) = get_microphone_contributions(index_stream_xml_path,student_ids)
 
-
+participant_names = get_participant_names(student_time_on_camera)
 
 dicts = [
         participant_names,
@@ -436,7 +436,7 @@ headers = [
 results.insert(0,headers)   
 results
 
-report_file_path = '/Users/JeffHalley/Adobe Connect Project/adobe connect recording files/report.csv'
+report_file_path = '/Users/JeffHalley/Adobe Connect Project/report_first_class.csv'
 
 save_report_csv(results,report_file_path)
     
