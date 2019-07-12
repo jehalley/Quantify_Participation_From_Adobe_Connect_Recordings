@@ -396,8 +396,18 @@ def save_report_csv(results,report_file_path):
         writer = csv.writer(outfile)
         writer.writerows(results)
 
-###start running
+###start running for first 5:15 PM class
 recording_folder_path = '/Users/JeffHalley/Adobe Connect Project/recordings of first class/'
+report_file_path = '/Users/JeffHalley/Adobe Connect Project/5-15_first_class.csv'
+
+#start running for dolphin class 2-12-2019
+recording_folder_path = '/Users/JeffHalley/Adobe Connect Project/dolphin class 2-12-2019/'
+report_file_path = '/Users/JeffHalley/Adobe Connect Project/2-12_dolphin_class.csv'
+
+#start running for 4-15 5:15 PM class
+recording_folder_path = '/Users/JeffHalley/Adobe Connect Project/adobe connect recording files/'
+report_file_path = '/Users/JeffHalley/Adobe Connect Project/5-15_april-15_class.csv'
+
 index_stream_xml_path = get_index_stream_xml_path(recording_folder_path)
 student_ids,student_pIDs = get_student_ids_and_pIDs(index_stream_xml_path)
 ftstage_file_path = get_ftstage_file_path(recording_folder_path)
@@ -452,8 +462,6 @@ headers = [
 #add headers to results list
 results.insert(0,headers)   
 results
-
-report_file_path = '/Users/JeffHalley/Adobe Connect Project/report_dolphin_class.csv'
 
 save_report_csv(results,report_file_path)
     
