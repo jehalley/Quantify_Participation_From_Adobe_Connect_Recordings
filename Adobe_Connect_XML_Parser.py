@@ -45,14 +45,10 @@ def get_contribution_summary(student_ids,cam_contributions,mic_contributions,han
     # append all the dictionaries together
 
 
-recording_folder_path = '/Users/JeffHalley/Adobe Connect Project/dolphin class 2-12-2019/'
-
-
+###start function 
 def get_index_stream_xml_path(recording_folder_path):
     indexstream = "indexstream.xml"
     return recording_folder_path+indexstream
-
-index_stream_xml_path = get_index_stream_xml_path(recording_folder_path)
 
 def get_student_ids_and_pIDs(index_stream_xml_path):
     with open(index_stream_xml_path) as filepath:
@@ -96,7 +92,6 @@ def get_student_ids_and_pIDs(index_stream_xml_path):
     #with zeroes for all students to act as a placeholder. Then use combined
     #dict from insight project. to give students with no record a zero
 
-student_ids,student_pIDs = get_student_ids_and_pIDs(index_stream_xml_path)
     
 def get_results_by_name_from_results_by_id(dict_of_results_by_id,student_ids):
     ids = list(dict_of_results_by_id.keys())
@@ -114,7 +109,6 @@ def get_ftstage_file_path(recording_folder_path):
     ftstage_file_path = glob.glob(recording_folder_path+ftstage_wildcard)
     return ftstage_file_path[0]
 
-ftstage_file_path = get_ftstage_file_path(recording_folder_path)
     
 def get_camera_contributions(index_stream_xml_path,ftstage_file_path,student_ids):
     with open(index_stream_xml_path) as filepath:
@@ -308,9 +302,7 @@ def get_camera_contributions(index_stream_xml_path,ftstage_file_path,student_ids
     get_results_by_name_from_results_by_id(student_fraction_of_instructor_time_on_camera,student_ids)
     
             )
- 
-time_on_camera,time_with_camera_paused,fraction_of_class_on_camera,fraction_of_instructor_time_on_camera = get_camera_contributions(index_stream_xml_path,ftstage_file_path,student_ids)
-    
+     
 def get_microphone_contributions(index_stream_xml_path,student_ids):
     with open(index_stream_xml_path) as filepath:
         index_stream = BeautifulSoup(filepath,"xml")
@@ -323,14 +315,14 @@ def get_microphone_contributions(index_stream_xml_path,student_ids):
     for item in range(len(mic_change_index)):
         #look in index of microphone changes to find instances where student turned mic on (started talking)
         if (
-                (mic_change_index[item].parent.parent.parent.String.find_next_sibling("String").text == 'true' and
-                mic_change_index[item].parent.parent.parent.String.find_next_sibling("String").find_next_sibling("String").text == 'false')
+                mic_change_index[item].parent.parent.parent.String.find_next_sibling("String").text == 'true' #and
+                #mic_change_index[item].parent.parent.parent.String.find_next_sibling("String").find_next_sibling("String").text == 'false'
             ):
             mic_start_ids.append(mic_change_index[item].parent.parent.parent.String.text)
             mic_start_times.append(int(mic_change_index[item].parent.find_next_sibling("time").text))
         if (
-                mic_change_index[item].parent.parent.parent.String.find_next_sibling("String").text == 'false' and
-                mic_change_index[item].parent.parent.parent.String.find_next_sibling("String").find_next_sibling("String").text == 'false'
+                mic_change_index[item].parent.parent.parent.String.find_next_sibling("String").text == 'false' #and
+                #mic_change_index[item].parent.parent.parent.String.find_next_sibling("String").find_next_sibling("String").text == 'false'
             ):
             mic_stop_ids.append(mic_change_index[item].parent.parent.parent.String.text)
             mic_stop_times.append(int(mic_change_index[item].parent.find_next_sibling("time").text))
@@ -348,7 +340,7 @@ def get_microphone_contributions(index_stream_xml_path,student_ids):
     for k in student_mic_start_times.keys():
         for start_time in range(len(student_mic_start_times[k])):
             clean_stops_ids.append(k)
-            clean_stops.append(next((x for x in dirty_student_mic_stop_times[k] if x >student_mic_start_times[k][start_time]), "No match"))
+            clean_stops.append(next((x for x in dirty_student_mic_stop_times[k] if x >student_mic_start_times[k][start_time]),student_mic_start_times[k][start_time] ))
     
     student_mic_stop_times = defaultdict(list)
     for student_id, stop_time in zip(clean_stops_ids,clean_stops):
@@ -404,6 +396,11 @@ def save_report_csv(results,report_file_path):
         writer = csv.writer(outfile)
         writer.writerows(results)
 
+###start running
+recording_folder_path = '/Users/JeffHalley/Adobe Connect Project/recordings of first class/'
+index_stream_xml_path = get_index_stream_xml_path(recording_folder_path)
+student_ids,student_pIDs = get_student_ids_and_pIDs(index_stream_xml_path)
+ftstage_file_path = get_ftstage_file_path(recording_folder_path)
 
 
 (
