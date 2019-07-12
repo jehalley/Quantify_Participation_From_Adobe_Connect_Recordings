@@ -4,7 +4,7 @@ from collections import Counter
 from copy import copy
 import csv
 import glob
-
+import re
 
 def get_student_roster(student_roster_csv_file_path):
     #read csv to get list of students in class store as list
@@ -70,6 +70,10 @@ def get_student_ids_and_pIDs(index_stream_xml_path):
         logins with their name followed by a number, for this reason the
         following is done to remove any numbers from names'''
         student_name = ''.join([i for i in student_name if not i.isdigit()])
+        #remove any doubled spaces in the name
+        student_name = re.sub(' +', ' ',student_name)
+        #remove any space before or after the name
+        student_name = student_name.strip()
         student_names.append(student_name)
         #use the name index to find the student id number for the student
         id_number = student_names_index[item].find_next_sibling("id").text
