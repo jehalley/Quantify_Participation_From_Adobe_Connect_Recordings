@@ -45,7 +45,7 @@ def get_contribution_summary(student_ids,cam_contributions,mic_contributions,han
     # append all the dictionaries together
 
 
-recording_folder_path = '/Users/JeffHalley/Adobe Connect Project/adobe connect recording files/'
+recording_folder_path = '/Users/JeffHalley/Adobe Connect Project/dolphin class 2-12-2019/'
 
 
 def get_index_stream_xml_path(recording_folder_path):
@@ -217,7 +217,7 @@ def get_camera_contributions(index_stream_xml_path,ftstage_file_path,student_ids
     video_removed_ids = []
     video_removed_times = []
     for item in range(len(video_removed_index)):
-        video_removed_ids.append(video_removed_index[item].parent.parent.Number.text)
+        video_removed_ids.append(video_removed_index[item].parent.next_sibling.next_sibling.text)
         video_removed_times.append(int(video_removed_index[item].parent.parent.time.text))
     student_video_removed_times = defaultdict(list)
     for student_id, removed_time in zip(video_removed_ids,video_removed_times):
@@ -323,22 +323,38 @@ def get_microphone_contributions(index_stream_xml_path,student_ids):
     for item in range(len(mic_change_index)):
         #look in index of microphone changes to find instances where student turned mic on (started talking)
         if (
-                mic_change_index[item].parent.parent.parent.String.find_next_sibling("String").text == 'true' and
-                mic_change_index[item].parent.parent.parent.String.find_next_sibling("String").find_next_sibling("String").text == 'false'
+                (mic_change_index[item].parent.parent.parent.String.find_next_sibling("String").text == 'true' and
+                mic_change_index[item].parent.parent.parent.String.find_next_sibling("String").find_next_sibling("String").text == 'false')
             ):
             mic_start_ids.append(mic_change_index[item].parent.parent.parent.String.text)
             mic_start_times.append(int(mic_change_index[item].parent.find_next_sibling("time").text))
-        elif mic_change_index[item].parent.parent.parent.String.find_next_sibling("String").find_next_sibling("String").text == 'false':
+        if (
+                mic_change_index[item].parent.parent.parent.String.find_next_sibling("String").text == 'false' and
+                mic_change_index[item].parent.parent.parent.String.find_next_sibling("String").find_next_sibling("String").text == 'false'
+            ):
             mic_stop_ids.append(mic_change_index[item].parent.parent.parent.String.text)
             mic_stop_times.append(int(mic_change_index[item].parent.find_next_sibling("time").text))
     student_mic_start_times = defaultdict(list)
     for student_id, start_time in zip(mic_start_ids,mic_start_times):
         student_mic_start_times[student_id].append(start_time)
-    student_mic_stop_times = defaultdict(list)
+    dirty_student_mic_stop_times = defaultdict(list)
+    #dirty because it contains some stops that do not correspond to starts
     for student_id, stop_time in zip(mic_stop_ids,mic_stop_times):
-        student_mic_stop_times[student_id].append(stop_time)
+        dirty_student_mic_stop_times[student_id].append(stop_time)
     
-    #give every student that didn't come on camera a zero
+    #many of the stop times will not correspond to real mic starts, so they should be removed
+    clean_stops = []
+    clean_stops_ids = []
+    for k in student_mic_start_times.keys():
+        for start_time in range(len(student_mic_start_times[k])):
+            clean_stops_ids.append(k)
+            clean_stops.append(next((x for x in dirty_student_mic_stop_times[k] if x >student_mic_start_times[k][start_time]), "No match"))
+    
+    student_mic_stop_times = defaultdict(list)
+    for student_id, stop_time in zip(clean_stops_ids,clean_stops):
+        student_mic_stop_times[student_id].append(stop_time)
+        
+    #give every student that didn't come on mic a zero
         
     for k in student_ids.keys():
         if len(student_mic_stop_times[k]) == 0:    
@@ -440,7 +456,7 @@ headers = [
 results.insert(0,headers)   
 results
 
-report_file_path = '/Users/JeffHalley/Adobe Connect Project/report_first_class.csv'
+report_file_path = '/Users/JeffHalley/Adobe Connect Project/report_dolphin_class.csv'
 
 save_report_csv(results,report_file_path)
     
