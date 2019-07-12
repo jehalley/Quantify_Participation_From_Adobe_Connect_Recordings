@@ -3,8 +3,11 @@ from bs4 import BeautifulSoup
 from collections import Counter
 from copy import copy
 import csv
+from datetime import datetime
 import glob
+import pytz
 import re
+import time
 
 def get_student_roster(student_roster_csv_file_path):
     #read csv to get list of students in class store as list
@@ -386,6 +389,26 @@ def get_microphone_contributions(index_stream_xml_path,student_ids):
     get_results_by_name_from_results_by_id(student_fraction_of_class_on_microphone,student_ids),
     get_results_by_name_from_results_by_id(student_fraction_of_instructor_mic,student_ids)
             )
+
+def get_chat_contributions(index_stream_xml_path,student_pIDs):
+    '''
+    ftchatX logs record time of chat message as unixtime code multiplied by 1000
+    in PST. The start date in indexstream is a readable string stating the 
+    in Greenwich mean time zone. This code will strip the time from 
+    indexstream.xml and convert it into the same format used in the ftchat logs
+    ''' 
+    #get indexstream timestamp
+    with open(index_stream_xml_path) as filepath:
+        index_stream = BeautifulSoup(filepath,"xml")
+        start_date = index_stream.root.Message.Array.String.next_sibling.next_sibling.next_sibling.next_sibling.text
+    
+    #convert to format used in ftchats
+    start_timestamp = datetime.fromtimestamp(time.mktime(time.strptime(start_date)))
+    old_timezone = pytz.timezone("Greenwich")
+    new_timezone = pytz.timezone("US/Pacific")
+    #all of the timestamps used by AC are multiplied by 1000
+    corrected_start_timestamp = 1000*(datetime.timestamp(old_timezone.localize(my_timestamp).astimezone(new_timezone)))
+
     
 def get_participant_names(student_time_on_camera):
     participant_names  = dict(zip(student_time_on_camera.keys(),student_time_on_camera.keys()))
