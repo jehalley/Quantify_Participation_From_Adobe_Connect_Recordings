@@ -2,6 +2,7 @@ from collections import defaultdict
 from bs4 import BeautifulSoup
 from collections import Counter
 from copy import copy
+import csv
 import glob
 
 
@@ -333,6 +334,14 @@ def get_microphone_contributions(index_stream_xml_path,student_ids):
     for student_id, stop_time in zip(mic_stop_ids,mic_stop_times):
         student_mic_stop_times[student_id].append(stop_time)
     
+    #give every student that didn't come on camera a zero
+        
+    for k in student_ids.keys():
+        if len(student_mic_stop_times[k]) == 0:    
+            student_mic_stop_times[k].append(0)
+        if len(student_mic_start_times[k]) == 0:    
+            student_mic_start_times[k].append(0)   
+    
     #get end of class time
     end_of_class_object = index_stream.find_all(text = '__stop__')   
     end_of_class_time = int(end_of_class_object[len(end_of_class_object)-1].parent.parent.Number.text)
@@ -366,6 +375,70 @@ def get_microphone_contributions(index_stream_xml_path,student_ids):
     get_results_by_name_from_results_by_id(student_fraction_of_instructor_mic,student_ids)
             )
     
+def get_participant_names(student_time_on_camera):
+    participant_names  = dict(zip(student_time_on_camera.keys(),student_time_on_camera.keys()))
+    return participant_names
+
+def save_report_csv(results,report_file_path):
+    with open(report_file_path, "w") as outfile:
+        writer = csv.writer(outfile)
+        writer.writerows(results)
+
+participant_names = get_participant_names(student_time_on_camera)
+
+(
+ student_time_on_camera,
+ student_minutes_with_camera_paused,
+ student_fraction_of_class_on_camera,
+ student_fraction_of_instructor_time_on_camera
+ )= get_camera_contributions(index_stream_xml_path,ftstage_file_path,student_ids)
+
+
+(
+ student_minutes_on_microphone, 
+ student_fraction_of_class_on_microphone,
+ student_fraction_of_instructor_mic
+ ) = get_microphone_contributions(index_stream_xml_path,student_ids)
+
+
+
+dicts = [
+        participant_names,
+        student_time_on_camera,
+        student_minutes_with_camera_paused,
+        student_fraction_of_class_on_camera,
+        student_fraction_of_instructor_time_on_camera,
+        student_minutes_on_microphone, 
+        student_fraction_of_class_on_microphone,
+        student_fraction_of_instructor_mic
+    ]    
+
+results = {}
+for k in student_time_on_camera.keys():
+    results[k] = list(results[k] for results in dicts)
+
+# convert results to list for sorting
+results = list(dict.values(results))
+#sort orders by department id
+results.sort()
+#make headers for results.csv file
+headers = [
+    "participant",
+    "minutes_on_camera",
+    "minutes with camera paused",
+    "fraction of class time on camera",
+    "fraction of instructor time on camera",
+    "minutes on microphone",
+    "fraction of class time on microphone",
+    "fraction of instructor time on microphone"
+    ]
+#add headers to results list
+results.insert(0,headers)   
+results
+
+report_file_path = '/Users/JeffHalley/Adobe Connect Project/adobe connect recording files/report.csv'
+
+save_report_csv(results,report_file_path)
     
         
  minutes_on_mic,fraction_of_class_time_on_mic,fraction_of_instructor_time_on_mic = get_microphone_contributions(index_stream_xml_path,student_ids)
