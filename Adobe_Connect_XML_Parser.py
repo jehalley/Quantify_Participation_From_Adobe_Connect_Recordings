@@ -104,17 +104,27 @@ def assign_zeroes_for_no_participation(dict_of_student_ids,dict_of_results):
             if dict_of_results[k] == 0:    
                 dict_of_results[k] = 0
 
-    
+def get_participant_names(student_ids):
+    participant_names  = dict(zip(student_ids.values(),student_ids.values()))
+    return participant_names
+  
 def get_results_by_name_from_results_by_id(dict_of_results_by_id,student_ids):
     ids = list(dict_of_results_by_id.keys())
     names_subbed_for_ids = [student_ids.get(item,0) for item in ids]
     results = list(dict_of_results_by_id.values())
-    results_with_names_subbed_for_ids = defaultdict(list)
-    for names, results in zip(names_subbed_for_ids,results):
-        results_with_names_subbed_for_ids[names].append(results) 
-    return({k:sum(v) for k,v in results_with_names_subbed_for_ids.items()})
-    
+    if type(results[0]) == list:
+        results_with_names_subbed_for_ids = defaultdict(list) 
+        for names, results in zip(names_subbed_for_ids,results):
+            results_with_names_subbed_for_ids[names].append(results)
+        return results_with_names_subbed_for_ids
+    if type(results[0]) == int or type(results[0]) == float:
+        results_with_names_subbed_for_ids = defaultdict(list) 
+        for names, results in zip(names_subbed_for_ids,results):
+            results_with_names_subbed_for_ids[names].append(results)
+        return({k:sum(v) for k,v in results_with_names_subbed_for_ids.items()})
+     
     return results_with_names_subbed_for_ids
+   
 
 def get_ftstage_file_path(recording_folder_path):
     ftstage_wildcard = "ftstage*.xml"
@@ -453,7 +463,7 @@ def get_chat_contributions(index_stream_xml_path,student_pIDs):
     
     student_chat_lengths = defaultdict(list)
     for student_pID, chat_length in zip(chat_pIDs,chat_lengths):
-        student_chat_message[student_pID].append(chat_message) 
+        student_chat_messages[student_pID].append(chat_message) 
     assign_zeroes_for_no_participation(student_pIDs,student_chat_lengths)
 
     student_message_count = Counter(chat_pIDs)
@@ -466,13 +476,9 @@ def get_chat_contributions(index_stream_xml_path,student_pIDs):
     return (
     get_results_by_name_from_results_by_id(student_chat_times,student_pIDs),
     get_results_by_name_from_results_by_id(student_chat_lengths,student_pIDs),
-    get_results_by_name_from_results_by_id(student_message_count,student_pIDs)
+    get_results_by_name_from_results_by_id(student_message_count,student_pIDs),
     get_results_by_name_from_results_by_id(student_fraction_of_chats,student_pIDs)
             )
-    
-def get_participant_names(student_time_on_camera):
-    participant_names  = dict(zip(student_time_on_camera.keys(),student_time_on_camera.keys()))
-    return participant_names
 
 def save_report_csv(results,report_file_path):
     with open(report_file_path, "w") as outfile:
@@ -492,10 +498,12 @@ report_file_path = '/Users/JeffHalley/Adobe Connect Project/2-12_dolphin_class.c
 recording_folder_path = '/Users/JeffHalley/Adobe Connect Project/adobe connect recording files/'
 report_file_path = '/Users/JeffHalley/Adobe Connect Project/5-15_april-15_class.csv'
 
+###
+
 index_stream_xml_path = get_index_stream_xml_path(recording_folder_path)
 student_ids,student_pIDs = get_student_ids_and_pIDs(index_stream_xml_path)
 ftstage_file_path = get_ftstage_file_path(recording_folder_path)
-
+participant_names = get_participant_names(student_ids)
 
 (
  student_time_on_camera,
@@ -511,7 +519,13 @@ ftstage_file_path = get_ftstage_file_path(recording_folder_path)
  student_fraction_of_instructor_mic
  ) = get_microphone_contributions(index_stream_xml_path,student_ids)
 
-participant_names = get_participant_names(student_time_on_camera)
+(
+ student_chat_times,
+ student_chat_lengths,
+ student_message_count,
+ student_fraction_of_chats
+ )= get_chat_contributions(index_stream_xml_path,student_pIDs)
+
 
 dicts = [
         participant_names,
@@ -521,12 +535,17 @@ dicts = [
         student_fraction_of_instructor_time_on_camera,
         student_minutes_on_microphone, 
         student_fraction_of_class_on_microphone,
-        student_fraction_of_instructor_mic
+        student_fraction_of_instructor_mic,
+        student_message_count,
+        student_fraction_of_chats
     ]    
 
-results = {}
-for k in student_time_on_camera.keys():
-    results[k] = list(results[k] for results in dicts)
+
+results = defaultdict(list)
+for k in participant_names.keys():
+    for item in dicts: 
+        results[k].append(item.get(k,0))
+    
 
 # convert results to list for sorting
 results = list(dict.values(results))
@@ -541,7 +560,9 @@ headers = [
     "fraction of instructor time on camera",
     "minutes on microphone",
     "fraction of class time on microphone",
-    "fraction of instructor time on microphone"
+    "fraction of instructor time on microphone",
+    "chat_messages_sent",
+    "fraction of messages sent"
     ]
 #add headers to results list
 results.insert(0,headers)   
@@ -549,10 +570,3 @@ results
 
 save_report_csv(results,report_file_path)
     
-        
- minutes_on_mic,fraction_of_class_time_on_mic,fraction_of_instructor_time_on_mic = get_microphone_contributions(index_stream_xml_path,student_ids)
- 
- results1,results2,results3 = get_camera_contributions(index_stream_xml_path,student_ids)
- test= get_results_by_name_from_results_by_id(results1,student_ids)
- 
- test,test2 = get_microphone_contributions(index_stream_xml_path)
