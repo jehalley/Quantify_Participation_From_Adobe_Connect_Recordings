@@ -95,6 +95,15 @@ def get_student_ids_and_pIDs(index_stream_xml_path):
     #with zeroes for all students to act as a placeholder. Then use combined
     #dict from insight project. to give students with no record a zero
 
+def assign_zeroes_for_no_participation(dict_of_student_ids,dict_of_results):
+    for k in dict_of_student_ids.keys():
+        if type(dict_of_results[k]) == list:
+            if len(dict_of_results[k]) == 0:    
+                dict_of_results[k].append(0)
+        if type(dict_of_results[k]) == int:
+            if dict_of_results[k] == 0:    
+                dict_of_results[k] = 0
+
     
 def get_results_by_name_from_results_by_id(dict_of_results_by_id,student_ids):
     ids = list(dict_of_results_by_id.keys())
@@ -428,47 +437,38 @@ def get_chat_contributions(index_stream_xml_path,student_pIDs):
         for item in range(len(chat_index)):
             if float(chat_index[item].parent.when.text) > corrected_start_timestamp:
                 chat_pIDs.append(chat_index[item].parent.fromPID.text)
-                chat_times.append(chat_index[item].parent.when.text)
+                chat_times.append(float(chat_index[item].parent.when.text))
                 chat_messages.append(chat_index[item].parent.fromPID.next_sibling.next_sibling.text)
-                chat_lengths.append(len(chat_index[item].parent.fromPID.next_sibling.next_sibling.text))
+                chat_lengths.append(int(len(chat_index[item].parent.fromPID.next_sibling.next_sibling.text)))
                 
     student_chat_messages = defaultdict(list)
-    for student_pIDs, chat_message in zip(chat_pIDs,chat_messages):
-        student_chat_message[student_pIDs].append(chat_message) 
+    for student_pID, chat_message in zip(chat_pIDs,chat_messages):
+        student_chat_messages[student_pID].append(chat_message) 
+    assign_zeroes_for_no_participation(student_pIDs,student_chat_messages)
     
     student_chat_times = defaultdict(list)
-    for student_pIDs, chat_time in zip(chat_pIDs,chat_times):
-        student_chat_times[student_pIDs].append(chat_time) 
+    for student_pID, chat_time in zip(chat_pIDs,chat_times):
+        student_chat_times[student_pID].append(chat_time) 
+    assign_zeroes_for_no_participation(student_pIDs,student_chat_times)
     
     student_chat_lengths = defaultdict(list)
-    for student_pIDs, chat_length in zip(chat_pIDs,chat_lengths):
-        student_chat_message[student_pIDs].append(chat_message) 
-    
-    #use counter to count the number of messages for each student
+    for student_pID, chat_length in zip(chat_pIDs,chat_lengths):
+        student_chat_message[student_pID].append(chat_message) 
+    assign_zeroes_for_no_participation(student_pIDs,student_chat_lengths)
+
     student_message_count = Counter(chat_pIDs)
+    assign_zeroes_for_no_participation(student_pIDs,student_message_count)
     
     student_fraction_of_chats = {k: student_message_count[k] / len(chat_messages) 
         for k in student_message_count}        
+    assign_zeroes_for_no_participation(student_pIDs,student_message_count)
     
-    with open(index_stream_xml_path) as filepath:
-        index_stream = BeautifulSoup(filepath,"xml")
-    #get time when student came on camera
-    camera_starts_index = index_stream.find_all(string = 'streamAdded')
-    camera_start_ids = []
-    camera_start_times = []
-    for item in range(len(camera_starts_index)):
-        #get id number of student that started their camera
-        camera_start_id = camera_starts_index[item].parent.parent.streamPublisherID.text
-        camera_start_ids.append(camera_start_id)
-        #get time that student started their camera
-        camera_start_time = int(camera_starts_index[item].parent.parent.startTime.text)
-        camera_start_times.append(camera_start_time)
-    student_camera_start_times = defaultdict(list)
-    for student_id, start_time in zip(camera_start_ids,camera_start_times):
-        student_camera_start_times[student_id].append(start_time) 
-      
-        
-    
+    return (
+    get_results_by_name_from_results_by_id(student_chat_times,student_pIDs),
+    get_results_by_name_from_results_by_id(student_chat_lengths,student_pIDs),
+    get_results_by_name_from_results_by_id(student_message_count,student_pIDs)
+    get_results_by_name_from_results_by_id(student_fraction_of_chats,student_pIDs)
+            )
     
 def get_participant_names(student_time_on_camera):
     participant_names  = dict(zip(student_time_on_camera.keys(),student_time_on_camera.keys()))
@@ -478,6 +478,7 @@ def save_report_csv(results,report_file_path):
     with open(report_file_path, "w") as outfile:
         writer = csv.writer(outfile)
         writer.writerows(results)
+        
 
 ###start running for first 5:15 PM class
 recording_folder_path = '/Users/JeffHalley/Adobe Connect Project/recordings of first class/'
