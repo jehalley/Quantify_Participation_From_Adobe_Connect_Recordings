@@ -1,3 +1,6 @@
+from bokeh.io import show, output_file
+from bokeh.plotting import figure, show, output_file
+from bokeh.layouts import  gridplot
 from collections import defaultdict
 from bs4 import BeautifulSoup
 from collections import Counter
@@ -549,8 +552,9 @@ for k in participant_names.keys():
 
 # convert results to list for sorting
 results = list(dict.values(results))
-#sort orders by department id
+#sort orders by student name
 results.sort()
+results.sort(key=lambda n: n[0].split()[1])
 #make headers for results.csv file
 headers = [
     "participant",
@@ -569,4 +573,21 @@ results.insert(0,headers)
 results
 
 save_report_csv(results,report_file_path)
-    
+
+###make plots
+output_file(recording_folder_path+"report_plots.html")
+
+plots = []
+for result in range(len(results[0])):
+    students =list(reversed([item[0] for item in results]))[:-1]
+    participation_data = list(reversed([item[result] for item in results]))[:-1]
+
+    p = figure(y_range = students, plot_width=400, plot_height=400, title = headers[result])
+    p.hbar(y=students, height=0.5, left=0,
+       right=participation_data, color="navy")
+    plots.append(p)
+
+g = gridplot([plots[1:5],plots[5:8],plots[8:12]])
+
+show(g)
+
