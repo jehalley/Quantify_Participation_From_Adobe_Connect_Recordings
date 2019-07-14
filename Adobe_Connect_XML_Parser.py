@@ -8,6 +8,7 @@ from copy import copy
 import csv
 from datetime import datetime
 import glob
+import numpy as np
 import pytz
 import re
 import time
@@ -482,7 +483,50 @@ def get_chat_contributions(index_stream_xml_path,student_pIDs):
     get_results_by_name_from_results_by_id(student_message_count,student_pIDs),
     get_results_by_name_from_results_by_id(student_fraction_of_chats,student_pIDs)
             )
-
+def get_participation_grade(student_time_on_camera, student_fraction_of_instructor_time_on_camera, student_minutes_on_microphone, student_fraction_of_instructor_mic, student_message_count,student_ids):
+    #get instructor name, instructor is likely the only participant with 1.0 for both variables
+    instructor_name = str
+    for name in [k for k,v in student_fraction_of_instructor_time_on_camera.items() if float(v) == 1.0]:
+        if name in [k for k,v in student_fraction_of_instructor_mic.items() if float(v) == 1.0]:
+            instructor_name = name
+    #get camera grade, decimal at end is made to avoid divide by zero errors
+    del(student_time_on_camera[instructor_name])
+    camera_time_mean = np.mean(list(student_time_on_camera.values()))
+    camera_time_stdev = np.std(list(student_time_on_camera.values()))+.00000001
+    #adjust scores so average participation is 98%
+    if camera_time_mean > 0:
+        camera_adjustment = 98/camera_time_mean
+    else:
+        camera_adjustment = 98
+    student_camera_grades = {k: (((student_time_on_camera[k]-camera_time_mean)/camera_time_stdev)*camera_adjustment)+98
+        for k in student_time_on_camera}
+    #get microphone grade
+    del(student_minutes_on_microphone[instructor_name])
+    mic_time_mean = np.mean(list(student_minutes_on_microphone.values()))
+    mic_time_stdev = np.std(list(student_minutes_on_microphone.values()))+.00000001
+    #adjust scores so average participation is 95% 
+    if mic_time_mean > 0:
+        mic_adjustment = 95/(mic_time_mean)
+    else:
+        mic_adjustment = 95
+    student_mic_grades = {k: (((student_minutes_on_microphone[k]-mic_time_mean)/mic_time_stdev)*mic_adjustment)+95
+        for k in student_minutes_on_microphone}
+    #get chat grades
+    del(student_message_count[instructor_name])
+    messages_mean = np.mean(list(student_message_count.values()))
+    messages_stdev = np.std(list(student_message_count.values()))+.00000001
+    #adjust scores so average participation is 90%
+    if messages_mean > 0:
+        message_adjustment = 90/messages_mean
+    else:
+        mic_adjustment = 90
+    student_message_grades = {k: (((student_message_count[k]-messages_mean)/messages_stdev)*messages_adjustment)+90
+        for k in student_message_count}
+    
+    #get total participation grade (average of cam,mic,and chat grades)
+    student_participation_grade = {k: (student_message_grades[k] + student_camera_grades[k] + student_mic_grades[k])/3
+        for k in student_message_grades}
+            
 def save_report_csv(results,report_file_path):
     with open(report_file_path, "w") as outfile:
         writer = csv.writer(outfile)
