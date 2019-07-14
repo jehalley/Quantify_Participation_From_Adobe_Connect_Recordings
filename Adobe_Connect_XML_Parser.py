@@ -1,5 +1,5 @@
 from bokeh.io import show, output_file
-from bokeh.plotting import figure, show, output_file
+from bokeh.plotting import figure 
 from bokeh.layouts import  gridplot
 from collections import defaultdict
 from bs4 import BeautifulSoup
@@ -13,46 +13,6 @@ import pytz
 import re
 import time
 
-def get_student_roster(student_roster_csv_file_path):
-    #read csv to get list of students in class store as list
-    student_roster =
-def get_student_ids(index_stream_xml_path,student_roster):
-    '''make two separate dictionaries with the same keys (student names) one for pids and one for ids. Pids are used in
-    chat transcripts and ids are used in camera, mic, and handsup tracking
-    '''
-    #get pID dict with Pid if student attended and zero if student did not attend
-    student_placeholder =  dictionary with names from student roster as keys and zero value for pID and Id
-    pIDS = make dict with name as key and pid as value from attendees
-    student_pID = add student_placeholder and pIDS together
-
-    #get id dict
-    student_placeholder = dictionary with names from student roster as keys and zero value for pID and Id
-    ids = make dict with name as key and pid as value from attendees
-    student_id = add student_placeholder and pIDS together
-def get_camera_contributions(index_stream_xml):
-    #make dict of time on camera with student id as key
-    camera_time = dict with id as key and time on camera as value
-    replace id with student name from student_id dict
-
-def get_microphone_contributions(index_stream_xml):
-    #make dict of microphone events with student id as key
-    on_mic_times = dict with id as key and times mic turned on as value
-    replace id with student name from student_id dict
-
-def get_handsup_contributions(index_stream_xml):
-    # make dict of handsup events with student id as key
-    handsup_events = dict with id as key and handsup events as value
-    replace idmwith student name from student_id dict
-
-def get_chat_contributions(ft_chat):
-    # make dict of chat contributions with pID as key
-    chat_contributions = dict with id as key and handsup events as value
-
-def get_contribution_summary(student_ids,cam_contributions,mic_contributions,handsup_contributions, chat_contributions):
-    # append all the dictionaries together
-
-
-###start function 
 def get_index_stream_xml_path(recording_folder_path):
     indexstream = "indexstream.xml"
     return recording_folder_path+indexstream
@@ -483,49 +443,58 @@ def get_chat_contributions(index_stream_xml_path,student_pIDs):
     get_results_by_name_from_results_by_id(student_message_count,student_pIDs),
     get_results_by_name_from_results_by_id(student_fraction_of_chats,student_pIDs)
             )
-def get_participation_grade(student_time_on_camera, student_fraction_of_instructor_time_on_camera, student_minutes_on_microphone, student_fraction_of_instructor_mic, student_message_count,student_ids):
+def get_participation_grades(student_time_on_camera, student_fraction_of_instructor_time_on_camera, student_minutes_on_microphone, student_fraction_of_instructor_mic, student_message_count):
     #get instructor name, instructor is likely the only participant with 1.0 for both variables
     instructor_name = str
     for name in [k for k,v in student_fraction_of_instructor_time_on_camera.items() if float(v) == 1.0]:
         if name in [k for k,v in student_fraction_of_instructor_mic.items() if float(v) == 1.0]:
             instructor_name = name
     #get camera grade, decimal at end is made to avoid divide by zero errors
-    del(student_time_on_camera[instructor_name])
-    camera_time_mean = np.mean(list(student_time_on_camera.values()))
-    camera_time_stdev = np.std(list(student_time_on_camera.values()))+.00000001
+    camera_times = copy(student_time_on_camera)
+    del(camera_times[instructor_name])
+    camera_time_mean = np.mean(list(camera_times.values()))
+    camera_time_stdev = np.std(list(camera_times.values()))+.00000001
     #adjust scores so average participation is 98%
     if camera_time_mean > 0:
         camera_adjustment = 98/camera_time_mean
     else:
         camera_adjustment = 98
-    student_camera_grades = {k: (((student_time_on_camera[k]-camera_time_mean)/camera_time_stdev)*camera_adjustment)+98
-        for k in student_time_on_camera}
+    student_camera_grades = {k: (((camera_times[k]-camera_time_mean)/camera_time_stdev)*camera_adjustment)+98
+        for k in camera_times}
     #get microphone grade
-    del(student_minutes_on_microphone[instructor_name])
-    mic_time_mean = np.mean(list(student_minutes_on_microphone.values()))
-    mic_time_stdev = np.std(list(student_minutes_on_microphone.values()))+.00000001
+    mic_times = copy(student_minutes_on_microphone)
+    del(mic_times[instructor_name])
+    mic_time_mean = np.mean(list(mic_times.values()))
+    mic_time_stdev = np.std(list(mic_times.values()))+.00000001
     #adjust scores so average participation is 95% 
     if mic_time_mean > 0:
         mic_adjustment = 95/(mic_time_mean)
     else:
         mic_adjustment = 95
-    student_mic_grades = {k: (((student_minutes_on_microphone[k]-mic_time_mean)/mic_time_stdev)*mic_adjustment)+95
-        for k in student_minutes_on_microphone}
+    student_mic_grades = {k: (((mic_times[k]-mic_time_mean)/mic_time_stdev)*mic_adjustment)+95
+        for k in mic_times}
     #get chat grades
-    del(student_message_count[instructor_name])
-    messages_mean = np.mean(list(student_message_count.values()))
-    messages_stdev = np.std(list(student_message_count.values()))+.00000001
+    message_count = copy(student_message_count)
+    del(message_count[instructor_name])
+    messages_mean = np.mean(list(message_count.values()))
+    messages_stdev = np.std(list(message_count.values()))+.00000001
     #adjust scores so average participation is 90%
     if messages_mean > 0:
-        message_adjustment = 90/messages_mean
+        messages_adjustment = 90/messages_mean
     else:
-        mic_adjustment = 90
-    student_message_grades = {k: (((student_message_count[k]-messages_mean)/messages_stdev)*messages_adjustment)+90
-        for k in student_message_count}
+        messages_adjustment = 90
+    student_message_grades = {k: (((message_count[k]-messages_mean)/messages_stdev)*messages_adjustment)+90
+        for k in message_count}
     
     #get total participation grade (average of cam,mic,and chat grades)
-    student_participation_grade = {k: (student_message_grades[k] + student_camera_grades[k] + student_mic_grades[k])/3
+    student_participation_grades = {k: (student_message_grades[k] + student_camera_grades[k] + student_mic_grades[k])/3
         for k in student_message_grades}
+    
+    for k in student_participation_grades.keys():
+        if student_participation_grades[k] > 105:
+            student_participation_grades[k] = 105
+    
+    return student_participation_grades
             
 def save_report_csv(results,report_file_path):
     with open(report_file_path, "w") as outfile:
@@ -573,9 +542,15 @@ participant_names = get_participant_names(student_ids)
  student_fraction_of_chats
  )= get_chat_contributions(index_stream_xml_path,student_pIDs)
 
+student_participation_grades = get_participation_grades(student_time_on_camera, 
+                                                       student_fraction_of_instructor_time_on_camera, 
+                                                       student_minutes_on_microphone, 
+                                                       student_fraction_of_instructor_mic, 
+                                                       student_message_count)
 
 dicts = [
         participant_names,
+        student_participation_grades,
         student_time_on_camera,
         student_minutes_with_camera_paused,
         student_fraction_of_class_on_camera,
@@ -601,16 +576,17 @@ results.sort()
 results.sort(key=lambda n: n[0].split()[1])
 #make headers for results.csv file
 headers = [
-    "participant",
-    "minutes_on_camera",
-    "minutes with camera paused",
-    "fraction of class time on camera",
-    "fraction of instructor time on camera",
-    "minutes on microphone",
-    "fraction of class time on microphone",
-    "fraction of instructor time on microphone",
-    "chat_messages_sent",
-    "fraction of messages sent"
+    "Participant",
+    "Participation Grades",
+    "Minutes on Camera",
+    "Minutes with Camera Paused",
+    "Fraction of Class Time on Camera",
+    "Fraction of Instructor Time on Camera",
+    "Minutes on Microphone",
+    "Fraction of Class Time on Microphone",
+    "Fraction of Instructor Time on Microphone",
+    "Chat Messages Sent",
+    "Fraction of Messages Sent"
     ]
 #add headers to results list
 results.insert(0,headers)   
@@ -631,7 +607,7 @@ for result in range(len(results[0])):
        right=participation_data, color="navy")
     plots.append(p)
 
-g = gridplot([plots[1:5],plots[5:8],plots[8:12]])
+g = gridplot([plots[1:2],plots[2:6],plots[6:9],plots[9:13]])
 
 show(g)
 
