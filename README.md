@@ -1,4 +1,4 @@
-# Adobe_Connect_Participation_Extracter
+# Adobe_Connect_Participation_Extractor
 
 ## Table of Contents
 1. [About This Script]
