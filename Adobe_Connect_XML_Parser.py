@@ -66,8 +66,8 @@ def get_student_ids_and_pids(index_stream):
         collection function
         '''
 
-    student_ids = dict(zip(list(reversed(id_numbers)), list(reversed(student_names))))
-    student_pids = dict(zip(list(reversed(pid_numbers)), list(reversed(student_names))))
+    student_ids = defaultdict(str, zip(list(reversed(id_numbers)), list(reversed(student_names))))
+    student_pids = defaultdict(str, zip(list(reversed(pid_numbers)), list(reversed(student_names))))
     return student_ids, student_pids
     # future plans: take a second argument a student roster cvs file make a dict
     # with zeroes for all students to act as a placeholder. Then use combined
@@ -76,7 +76,17 @@ def get_student_ids_and_pids(index_stream):
 
 def get_instructor_id_and_instructor_name(index_stream):
     instructor_id = index_stream.find("myID").text
-    instructor_name = student_ids[instructor_id]
+    instructor = student_ids[instructor_id]
+    instructor_pid = list(student_pids.keys())[list(student_pids.values()).index(instructor)]
+    
+    #designate instructor in instructor's name
+    instructor_title_and_name = " ~ ~Instructor~ ~ " + instructor
+    instructor_name = instructor_title_and_name
+    
+    #replace instructor name with instructor title name in student IDs dict
+    student_ids[instructor_id] = instructor_title_and_name
+    student_pids[instructor_pid] = instructor_title_and_name
+    
     return instructor_id, instructor_name
 
 
@@ -568,8 +578,9 @@ report_file_path = '/Users/JeffHalley/Adobe Connect Project/es_week_31_2.csv'
 index_stream = get_index_stream(recording_folder_path)
 student_ids, student_pids = get_student_ids_and_pids(index_stream)
 ftstage = get_ftstage(recording_folder_path)
-participant_names = get_participant_names(student_ids)
 instructor_id, instructor_name = get_instructor_id_and_instructor_name(index_stream)
+participant_names = get_participant_names(student_ids)
+
 
 (
     student_time_on_camera,
