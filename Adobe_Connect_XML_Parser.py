@@ -36,28 +36,35 @@ def get_student_ids_and_pids(index_stream):
     for item in range(len(student_names_index)):
         # use the name index to access the actual name and add it to the list of names
         student_name = student_names_index[item].parent.fullName.text
+        
         '''sometimes students have connection issues and they end up with multiple
         logins with their name followed by a number, for this reason the
         following is done to remove any numbers from names'''
         student_name = ''.join([i for i in student_name if not i.isdigit()])
+        
         # remove any doubled spaces in the name
         student_name = re.sub(' +', ' ', student_name)
+        
         # remove any space before or after the name
         student_name = student_name.strip()
         student_names.append(student_name)
+        
         # use the name index to find the student id number for the student
         id_number = student_names_index[item].find_next_sibling("id").text
         id_numbers.append(id_number)
+        
         # use the name index to find the the pID for each student and add to list
         pid_number = student_names_index[item].find_next_sibling("pID").text
         pid_numbers.append(pid_number)
 
-    '''make dict with student ID or pID and student name. Reverse list is used 
+        '''
+        make dict with student ID or pID and student name. Reverse list is used 
         because sometimes students change names, but the first name is always
         as listed in class roster, also note sometimes students are kicked out
         and log back in and thus given a new ID and pID, this will be dealt
         with when names are subbed in for IDs at the end of each results
-        collection function'''
+        collection function
+        '''
 
     student_ids = dict(zip(list(reversed(id_numbers)), list(reversed(student_names))))
     student_pids = dict(zip(list(reversed(pid_numbers)), list(reversed(student_names))))
@@ -71,6 +78,7 @@ def get_instructor_id_and_instructor_name(index_stream):
     instructor_id = index_stream.find("myID").text
     instructor_name = student_ids[instructor_id]
     return instructor_id, instructor_name
+
 
 def assign_zeroes_for_no_participation(dict_of_student_ids, dict_of_results):
     for k in dict_of_student_ids.keys():
@@ -106,14 +114,15 @@ def get_results_by_name_from_results_by_id(dict_of_results_by_id, student_ids):
 
 
 def get_ftstage(recording_folder_path):
-    '''ftstage is the xml file describing what happens with the camera streams
-        in the video pod, much of this information is in the indexstream xml
-        file as well, but not the camera pause info. ftstage is used to find 
-        times when students pause the camera. ftstage files always start with
-        "ftstage" and end with ".xml" but they have different numbers in 
-        different recordings so a wildcard is used to find the file in the 
-        recording folder
-        '''
+    '''
+    ftstage is the xml file describing what happens with the camera streams
+    in the video pod, much of this information is in the indexstream xml
+    file as well, but not the camera pause info. ftstage is used to find
+    times when students pause the camera. ftstage files always start with
+    "ftstage" and end with ".xml" but they have different numbers in
+    different recordings so a wildcard is used to find the file in the
+    recording folder
+    '''
     ftstage_wildcard = "ftstage*.xml"
 
     '''
