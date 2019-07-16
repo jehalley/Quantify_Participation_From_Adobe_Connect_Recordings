@@ -5,7 +5,7 @@
 1. [Imported Modules]
 1. [My Approach)
 1. [Unit Tests]
-1. [Instructions]
+1. [Acknowledgements]
 
 ## About this Script
 
