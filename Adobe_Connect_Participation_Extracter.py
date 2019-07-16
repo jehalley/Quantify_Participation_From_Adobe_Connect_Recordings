@@ -1,3 +1,11 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Tue Jul 16 11:14:13 2019
+
+@author: JeffHalley
+"""
+
 from sys import argv
 from bokeh.io import save, output_file
 from bokeh.plotting import figure
