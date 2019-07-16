@@ -1,4 +1,5 @@
-from bokeh.io import show, output_file
+from sys import argv
+from bokeh.io import save, output_file
 from bokeh.plotting import figure
 from bokeh.layouts import gridplot
 from collections import defaultdict
@@ -74,7 +75,7 @@ def get_student_ids_and_pids(index_stream):
     # dict from insight project. to give students with no record a zero
 
 
-def get_instructor_id_and_instructor_name(index_stream):
+def get_instructor_id_and_instructor_name(index_stream, student_ids, student_pids):
     instructor_id = index_stream.find("myID").text
     instructor = student_ids[instructor_id]
     instructor_pid = list(student_pids.keys())[list(student_pids.values()).index(instructor)]
@@ -145,7 +146,7 @@ def get_ftstage(recording_folder_path):
     return ftstage
 
 
-def get_camera_contributions(index_stream, ftstage, student_ids):
+def get_camera_contributions(index_stream, ftstage, student_ids, instructor_id):
     # get time when student came on camera from index stream soup
     camera_starts_index = index_stream.find_all(string='streamAdded')
     camera_start_ids = []
@@ -346,7 +347,7 @@ def get_camera_contributions(index_stream, ftstage, student_ids):
     )
 
 
-def get_microphone_contributions(index_stream, student_ids):
+def get_microphone_contributions(index_stream, student_ids, instructor_id):
     # get times when student has a microphone change (turns it on OR off)
     mic_change_index = index_stream.find_all(string='userVoipStatusChanged')
     mic_start_ids = []
@@ -422,7 +423,7 @@ def get_microphone_contributions(index_stream, student_ids):
     )
 
 
-def get_chat_contributions(index_stream, student_pids):
+def get_chat_contributions(index_stream, student_pids, recording_folder_file_path):
     '''
     ftchatX logs record time of chat message as unixtime code multiplied by 1000
     in PST. The start date in indexstream is a readable string stating the 
@@ -446,7 +447,7 @@ def get_chat_contributions(index_stream, student_pids):
 
     # get list of ftchat files
     ftchat_wildcard = "ftchat*.xml"
-    ftchat_file_path_list = glob.glob(recording_folder_path + ftchat_wildcard)
+    ftchat_file_path_list = glob.glob(recording_folder_file_path + ftchat_wildcard)
 
     # loop through the list finding all messages chat_times, and chat_lengths
     chat_pids = []
@@ -552,121 +553,109 @@ def save_report_csv(results, report_file_path):
         writer = csv.writer(outfile)
         writer.writerows(results)
 
+def get_results_summary(recording_folder_file_path, report_folder_file_path):
+    index_stream = get_index_stream(recording_folder_file_path)
+    student_ids, student_pids = get_student_ids_and_pids(index_stream)
+    ftstage = get_ftstage(recording_folder_file_path)
+    instructor_id, instructor_name = get_instructor_id_and_instructor_name(index_stream, 
+                                                                           student_ids, 
+                                                                           student_pids)
+    participant_names = get_participant_names(student_ids)
+    
+    
+    (
+        student_time_on_camera,
+        student_minutes_with_camera_paused,
+        student_fraction_of_class_on_camera,
+        student_fraction_of_instructor_time_on_camera
+    ) = get_camera_contributions(index_stream, ftstage, student_ids, instructor_id)
+    
+    (
+        student_minutes_on_microphone,
+        student_fraction_of_class_on_microphone,
+        student_fraction_of_instructor_mic
+    ) = get_microphone_contributions(index_stream, student_ids, instructor_id)
+    
+    (
+        student_chat_times,
+        student_chat_lengths,
+        student_message_count,
+        student_fraction_of_chats
+    ) = get_chat_contributions(index_stream, student_pids, recording_folder_file_path)
+    
+    student_participation_grades = get_participation_grades(student_time_on_camera,
+                                                            student_minutes_on_microphone,
+                                                            student_message_count,
+                                                            instructor_name)
+    
+    class_data = [
+        participant_names,
+        student_participation_grades,
+        student_time_on_camera,
+        student_minutes_with_camera_paused,
+        student_fraction_of_class_on_camera,
+        student_fraction_of_instructor_time_on_camera,
+        student_minutes_on_microphone,
+        student_fraction_of_class_on_microphone,
+        student_fraction_of_instructor_mic,
+        student_message_count,
+        student_fraction_of_chats
+    ]
+    
+    results = defaultdict(list)
+    for k in participant_names.keys():
+        for item in class_data:
+            results[k].append(item.get(k, 0))
+    
+    # convert results to list for sorting
+    results = list(results.values())
+    
+    # sort orders by student name
+    results.sort()
+    results.sort(key=lambda n: n[0].split()[1])
+    
+    # make headers for results.csv file
+    headers = [
+        "Participant",
+        "Participation Grades",
+        "Minutes on Camera",
+        "Minutes with Camera Paused",
+        "Fraction of Class Time on Camera",
+        "Fraction of Instructor Time on Camera",
+        "Minutes on Microphone",
+        "Fraction of Class Time on Microphone",
+        "Fraction of Instructor Time on Microphone",
+        "Chat Messages Sent",
+        "Fraction of Messages Sent"
+    ]
+    
+    # add headers to results list
+    results.insert(0, headers)
+    
+    report_file_path = report_folder_file_path + "participation_report.csv"
+    
+    save_report_csv(results, report_file_path)
+    
+    return results, headers
 
-###start running for first 5:15 PM class
-recording_folder_path = '/Users/JeffHalley/Adobe Connect Project/recordings of first class/'
-report_file_path = '/Users/JeffHalley/Adobe Connect Project/5-15_first_class.csv'
+def get_summary_plots(results,headers,report_folder_file_path):
+    output_file(report_folder_file_path + "participation_report_plots.html") 
+    plots = []
+    for result in range(len(results[0])):
+        students = list(reversed([item[0] for item in results]))[:-1]
+        participation_data = list(reversed([item[result] for item in results]))[:-1]
+    
+        p = figure(y_range=students, plot_width=400, plot_height=400, title=headers[result])
+        p.hbar(y=students, height=0.5, left=0,
+               right=participation_data, color="navy")
+        plots.append(p)
+    
+    g = gridplot([plots[1:2], plots[2:4], plots[6:7], plots[9:10]])
+    
+    save(g)
 
-# start running for dolphin class 2-12-2019
-recording_folder_path = '/Users/JeffHalley/Adobe Connect Project/dolphin class 2-12-2019/'
-report_file_path = '/Users/JeffHalley/Adobe Connect Project/2-12_dolphin_class.csv'
-
-# start running for 4-15 5:15 PM class
-recording_folder_path = '/Users/JeffHalley/Adobe Connect Project/adobe connect recording files/'
-report_file_path = '/Users/JeffHalley/Adobe Connect Project/MODIFIED5-15_april-15_class.csv'
-
-##start running for Environmental Science Week 18 Meeting 2
-recording_folder_path = '/Users/JeffHalley/Adobe Connect Project/Week18mtg2/'
-report_file_path = '/Users/JeffHalley/Adobe Connect Project/es_week_18_2.csv'
-
-###start running for Environmental Science Week 31 Meeting 2
-recording_folder_path = '/Users/JeffHalley/Adobe Connect Project/Week31mtg2/'
-report_file_path = '/Users/JeffHalley/Adobe Connect Project/es_week_31_2.csv'
-
-###
-
-index_stream = get_index_stream(recording_folder_path)
-student_ids, student_pids = get_student_ids_and_pids(index_stream)
-ftstage = get_ftstage(recording_folder_path)
-instructor_id, instructor_name = get_instructor_id_and_instructor_name(index_stream)
-participant_names = get_participant_names(student_ids)
-
-
-(
-    student_time_on_camera,
-    student_minutes_with_camera_paused,
-    student_fraction_of_class_on_camera,
-    student_fraction_of_instructor_time_on_camera
-) = get_camera_contributions(index_stream, ftstage, student_ids)
-
-(
-    student_minutes_on_microphone,
-    student_fraction_of_class_on_microphone,
-    student_fraction_of_instructor_mic
-) = get_microphone_contributions(index_stream, student_ids)
-
-(
-    student_chat_times,
-    student_chat_lengths,
-    student_message_count,
-    student_fraction_of_chats
-) = get_chat_contributions(index_stream, student_pids)
-
-student_participation_grades = get_participation_grades(student_time_on_camera,
-                                                        student_minutes_on_microphone,
-                                                        student_message_count,
-                                                        instructor_name)
-
-class_data = [
-    participant_names,
-    student_participation_grades,
-    student_time_on_camera,
-    student_minutes_with_camera_paused,
-    student_fraction_of_class_on_camera,
-    student_fraction_of_instructor_time_on_camera,
-    student_minutes_on_microphone,
-    student_fraction_of_class_on_microphone,
-    student_fraction_of_instructor_mic,
-    student_message_count,
-    student_fraction_of_chats
-]
-
-results = defaultdict(list)
-for k in participant_names.keys():
-    for item in class_data:
-        results[k].append(item.get(k, 0))
-
-# convert results to list for sorting
-results = list(results.values())
-
-# sort orders by student name
-results.sort()
-results.sort(key=lambda n: n[0].split()[1])
-
-# make headers for results.csv file
-headers = [
-    "Participant",
-    "Participation Grades",
-    "Minutes on Camera",
-    "Minutes with Camera Paused",
-    "Fraction of Class Time on Camera",
-    "Fraction of Instructor Time on Camera",
-    "Minutes on Microphone",
-    "Fraction of Class Time on Microphone",
-    "Fraction of Instructor Time on Microphone",
-    "Chat Messages Sent",
-    "Fraction of Messages Sent"
-]
-
-# add headers to results list
-results.insert(0, headers)
-results
-
-save_report_csv(results, report_file_path)
-
-###make plots
-output_file(recording_folder_path + "report_plots.html")
-
-plots = []
-for result in range(len(results[0])):
-    students = list(reversed([item[0] for item in results]))[:-1]
-    participation_data = list(reversed([item[result] for item in results]))[:-1]
-
-    p = figure(y_range=students, plot_width=400, plot_height=400, title=headers[result])
-    p.hbar(y=students, height=0.5, left=0,
-           right=participation_data, color="navy")
-    plots.append(p)
-
-g = gridplot([plots[1:2], plots[2:4], plots[6:7], plots[9:10]])
-
-show(g)
+if __name__ == '__main__':
+    recording_folder_file_path, report_folder_file_path = argv[1],argv[2]
+    results, headers = get_results_summary(recording_folder_file_path, report_folder_file_path)
+    get_summary_plots(results,headers,report_folder_file_path)
+    
