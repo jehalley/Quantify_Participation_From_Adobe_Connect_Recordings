@@ -31,7 +31,7 @@ This script requires the following modules to be imported:
 
 ## My approach
 
-Adobe Connect recordings are not simply videos of evertying that appeared on the screen during the session, rather they are a transscript (written in several .xml files) that is read by the Adobe Connect software to reenact the events that occurred during the class. The video and audio are actual recordings, but the start time and end times of these events are triggered by the transcript .xml files. 
+Adobe Connect recordings are not simply videos of everything that appeared on the screen during the session, rather they are a transcript (written in several .xml files) that is read by the Adobe Connect software to reenact the events that occurred during the class. The video and audio are actual recordings, but the start time and end times of these events are triggered by the transcript .xml files. 
 
 This script extracts each participant's activities during the class (when they sent a message, and when they came on camera or microphone) from the .xml transcript and uses this information to determine the total number of messages they sent, the total time they spent on camera, and the total time they spent on microphone. Finally, the script calculates a total participation score from a student's message count, camera time and microphone time.
 
