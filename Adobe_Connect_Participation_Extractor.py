@@ -512,10 +512,10 @@ def get_participation_grades(student_time_on_camera, student_minutes_on_micropho
     camera_time_stdev = np.std(list(camera_times.values())) + .00000001
     # adjust scores so average participation is 98%
     if camera_time_mean > 0:
-        camera_adjustment = 98 / camera_time_mean
+        camera_adjustment = 100 / camera_time_mean
     else:
-        camera_adjustment = 98
-    student_camera_grades = {k: (((camera_times[k] - camera_time_mean) / camera_time_stdev) * camera_adjustment) + 98
+        camera_adjustment = 100
+    student_camera_grades = {k: (((camera_times[k] - camera_time_mean) / camera_time_stdev) * camera_adjustment) + 100
                              for k in camera_times}
 
     # get microphone grade
@@ -525,10 +525,10 @@ def get_participation_grades(student_time_on_camera, student_minutes_on_micropho
     mic_time_stdev = np.std(list(mic_times.values())) + .00000001
     # adjust scores so average participation is 95%
     if mic_time_mean > 0:
-        mic_adjustment = 95 / (mic_time_mean)
+        mic_adjustment = 100 / (mic_time_mean)
     else:
-        mic_adjustment = 95
-    student_mic_grades = {k: (((mic_times[k] - mic_time_mean) / mic_time_stdev) * mic_adjustment) + 95
+        mic_adjustment = 100
+    student_mic_grades = {k: (((mic_times[k] - mic_time_mean) / mic_time_stdev) * mic_adjustment) + 100
                           for k in mic_times}
 
     # get chat grades
@@ -538,10 +538,10 @@ def get_participation_grades(student_time_on_camera, student_minutes_on_micropho
     messages_stdev = np.std(list(message_count.values())) + .00000001
     # adjust scores so average participation is 90%
     if messages_mean > 0:
-        messages_adjustment = 90 / messages_mean
+        messages_adjustment = 100 / messages_mean
     else:
-        messages_adjustment = 90
-    student_message_grades = {k: (((message_count[k] - messages_mean) / messages_stdev) * messages_adjustment) + 90
+        messages_adjustment = 100
+    student_message_grades = {k: (((message_count[k] - messages_mean) / messages_stdev) * messages_adjustment) + 100
                               for k in message_count}
 
     # get total participation grade (average of cam,mic,and chat grades)
