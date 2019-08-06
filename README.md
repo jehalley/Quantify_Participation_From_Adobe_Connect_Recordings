@@ -45,7 +45,7 @@ Microphone Time:
 Adobe Connect transcribes microphone events in indexstream.xml. While a participant is talking the microphone icon will turn on and off automatically. These icon changes, are tagged with the participants id. To determine the total time a participant spent on microphone the script determines the sum of speaking-event times (one speaking event is the time microphone icon status changed to false, when the student stopped talking, minus the time when the microphone icon changed to true, when the student started talking).
 
 Participation grade:
-The participation grade is determined by calculating the average and standard deviation for message count, camera time, and microphone time and adjusts average participation to 100%. Each student's score for each participation factor is the number of standard deviations their adjusted participation factor is added to the adjusted average for the participation score. The participation grade is then calculating by average the participation scores for messages sent, camera time, and microphone time with a maximum time of 105%.
+The participation grade is determined by calculating the average and standard deviation for message count, camera time, and microphone time and adjusts average participation to 100%. Each student's score for each participation factor is the number of standard deviations their adjusted participation factor is added to the adjusted average for the participation score. The participation grade is then calculating by average the participation scores for messages sent, camera time, and microphone time with a maximum grade of 105%.
 
 ### Integration Tests
 
