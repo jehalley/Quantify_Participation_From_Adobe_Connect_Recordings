@@ -342,6 +342,11 @@ def get_camera_contributions(index_stream, ftstage, student_ids, instructor_id):
 
     # determine fraction of time student is on mic compared to instructor
     instructor_time_on_camera = student_time_on_camera[instructor_id]
+    
+    #sometimes, unclear why at this point, instructor camera time gets recorded as 0, this is a patch for that
+    if instructor_time_on_camera == 0:
+        instructor_time_on_camera = end_of_clas_time_minutes
+        
     student_fraction_of_instructor_time_on_camera = {k: v / instructor_time_on_camera for k, v in
                                                      student_time_on_camera.items()}
     student_fraction_of_instructor_time_on_camera = defaultdict(int, student_fraction_of_instructor_time_on_camera)
@@ -420,6 +425,10 @@ def get_microphone_contributions(index_stream, student_ids, instructor_id):
 
     # determine fraction of time student is on mic compared to instructor
     instructor_time_on_mic = student_minutes_on_microphone[instructor_id]
+    
+    if instructor_time_on_mic == 0:
+        instructor_time_on_mic = 1.0
+    
     student_fraction_of_instructor_mic = {k: v / instructor_time_on_mic for k, v in
                                           student_minutes_on_microphone.items()}
     student_fraction_of_instructor_mic = defaultdict(int, student_fraction_of_instructor_mic)
@@ -510,7 +519,7 @@ def get_participation_grades(student_time_on_camera, student_minutes_on_micropho
     del (camera_times[instructor_name])
     camera_time_mean = np.mean(list(camera_times.values()))
     camera_time_stdev = np.std(list(camera_times.values())) + .00000001
-    # adjust scores so average participation is 98%
+    # adjust scores so average participation is 100%
     if camera_time_mean > 0:
         camera_adjustment = 100 / camera_time_mean
     else:
@@ -523,7 +532,7 @@ def get_participation_grades(student_time_on_camera, student_minutes_on_micropho
     del (mic_times[instructor_name])
     mic_time_mean = np.mean(list(mic_times.values()))
     mic_time_stdev = np.std(list(mic_times.values())) + .00000001
-    # adjust scores so average participation is 95%
+    # adjust scores so average participation is 100%
     if mic_time_mean > 0:
         mic_adjustment = 100 / (mic_time_mean)
     else:
